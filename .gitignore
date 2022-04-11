@@ -15,4 +15,7 @@
 *.tar
 *.v2
 *.feat
-aclImdb
+Tutorials\data_word_embeddings
+*.pyc
+*.tsv
+

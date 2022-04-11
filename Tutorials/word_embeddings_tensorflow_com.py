@@ -13,11 +13,11 @@ from tensorflow.keras.layers import TextVectorization
 package_location = os.path.dirname(os.path.dirname(__file__))
 utils_location = os.path.join(package_location,'shared_utils')
 sys.path.append(utils_location)
-from archive_utils import extract_archive
+from archive_utils import download_and_extract, make_download_paths_default
 from string_tools import custom_standardization
 from os_utils import make_new_dirs
 this_script_location = os.path.dirname(__file__) # Derive from location of this tutorial 
-data_path_target = os.path.join(this_script_location,'data_word_embeddings')
+data_dir_top = os.path.join(this_script_location,'data_word_embeddings')
 
 
 # This is a modified Tutorial based on https://www.tensorflow.org/text/guide/word_embeddings. 
@@ -42,7 +42,7 @@ def main():
     vectorize_layer = vectorize_inputs(train_ds,vocab_size,sequence_length)
 
     # Define model architecture 
-    model = define_model(train_ds,vectorize_layer)
+    model = define_model(vectorize_layer,vocab_size)
 
     # Define tensorboard callback which will monitor a log directory and construct a training chart
     logdir = os.path.join(script_dir,"logs")
@@ -72,38 +72,23 @@ def main():
         vec = weights[index]
         out_v.write('\t'.join([str(x) for x in vec]) + "\n")
         out_m.write(word + "\n")
-        out_v.close()
-        out_m.close()
+    out_v.close()
+    out_m.close()
     
 
 def fetch_data():
-    # Download to the location of this script file 
-    # Automatically unzips 
-    download_file_name = os.path.basename(url) # Derive from download link address
-    path_to_zip = os.path.join(data_path_target,download_file_name)
-    target_dir = path_to_zip.split('.')[0]
+    # Download and unzip data
+    path_to_archive, unpacked_dir = make_download_paths_default(url, data_dir_top)
     if download_fresh: 
-        make_new_dirs(data_path_target,clean_exisitng_data=True)
-        unpacked_archive = tf.keras.utils.get_file(fname=path_to_zip, origin=url,
-                                    extract=False, cache_dir='.',
-                                    cache_subdir='') 
-        # The unpacked dir name returned by get_file does not account for nested .tar.gz
-        # Use custom utility to extract archive to controlled location
-        extract_archive(path_to_zip,this_script_location)
+        download_and_extract(url, path_to_archive, unpacked_dir) 
 
-    train_dir = os.path.join(target_dir, 'train')
-    os.listdir(train_dir) 
-
-    remove_dir = os.path.join(train_dir, 'unsup')
-    if os.path.exists(remove_dir): 
-        shutil.rmtree(remove_dir) 
-
+    # Fetch files as tensorflow datasets
     batch_size = 1024
     seed = 123
-    train_ds = tf.keras.utils.text_dataset_from_directory(os.path.join(target_dir,'train'), 
+    train_ds = tf.keras.utils.text_dataset_from_directory(os.path.join(unpacked_dir,'train'), 
         batch_size=batch_size, validation_split=0.2,
         subset='training', seed=seed)
-    val_ds = tf.keras.utils.text_dataset_from_directory(os.path.join(target_dir,'train'),
+    val_ds = tf.keras.utils.text_dataset_from_directory(os.path.join(unpacked_dir,'train'),
         batch_size=batch_size, validation_split=0.2,
         subset='validation', seed=seed)
 
@@ -146,7 +131,7 @@ def vectorize_inputs(train_ds,vocab_size=10000,sequence_length=100):
     return vectorize_layer
 
 
-def define_model(train_ds, vectorize_layer):       
+def define_model(vectorize_layer,vocab_size):       
     # Construct a Sequential keras model. Each layer uses the number of channels of previous layer as its input size 
     # To my current knowledge, only one connection between layers is allowed i.e. U-NET cannot be constructed using sequential API
     embedding_dim=16

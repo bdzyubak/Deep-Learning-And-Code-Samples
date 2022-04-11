@@ -15,7 +15,7 @@
 *.tar
 *.v2
 *.feat
-Tutorials\data_word_embeddings
+Tutorials/data_word_embeddings
 *.pyc
 *.tsv
 

@@ -5,7 +5,7 @@ from struct import unpack
 import tarfile
 import zipfile
 import glob
-from os_utils import make_new_dirs, move_and_merge_dirs
+from os_utils import make_new_dirs, move_and_merge_dirs, delete_directory
 import tensorflow as tf
 import shutil
 this_script_location = os.path.dirname(__file__) # Derive from location of this tutorial 
@@ -51,8 +51,7 @@ def download_and_extract(url, path_to_archive, unpacked_dir):
         # Use custom utility to extract archive to controlled location
     extract_archive(path_to_archive,this_script_location)
     remove_dir = os.path.join(unpacked_dir, 'train', 'unsup')
-    if os.path.exists(remove_dir): 
-        shutil.rmtree(remove_dir)
+    delete_directory(remove_dir) 
 
 
 def extract_archive(path_to_zip, to_path=None, remove_finished=True):
@@ -63,7 +62,7 @@ def extract_archive(path_to_zip, to_path=None, remove_finished=True):
     control_name_for_layered_archive(path_to_zip)   
 
     if remove_finished:
-        os.remove(path_to_zip) 
+        delete_directory(path_to_zip) 
 
 
 def control_name_for_layered_archive(path_to_zip): 

@@ -18,4 +18,9 @@
 Tutorials/data_word_embeddings
 *.pyc
 *.tsv
-
+/Cell-Nuclei-Segmentation/data
+/Cell-Nuclei-Segmentation/img
+/Cell-Nuclei-Segmentation/UNET/results
+*.md
+*.jpg
+*.png

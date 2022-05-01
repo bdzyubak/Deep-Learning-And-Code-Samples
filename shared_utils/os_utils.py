@@ -44,11 +44,11 @@ def delete_directory(target_directory):
     # This module uses OS calls to speed up removal of large numbers of files compared to shutil's rmtree
     if os.path.exists(target_directory): 
         if os_name == 'win': 
-            command = 'rm -r'
+            command = 'rmdir /s /q'
         else: 
             command = 'rm -rf'
 
-        output = subprocess.check_output(command + ' ' + target_directory)
+        output = subprocess.check_output(command + ' ' + target_directory,shell=True)
         if output != 0: 
             raise(OSError('Cannot delete folder.'))
     else: 

@@ -25,14 +25,15 @@ def main():
     tf.random.set_seed(42)
 
     """ Directory to save files """
-    create_dir("files")
+    model_dir = os.path.join(os.path.dirname(__file__),"trained_model")
+    create_dir(model_dir)
 
     """ Hyperparaqmeters """
     batch_size = 8
     lr = 1e-4   ## 0.0001
     num_epochs = 10
-    model_path = "files/model.h5"
-    csv_path = "files/data.csv"
+    model_path = os.path.join(model_dir,"model.h5")
+    csv_path = os.path.join(model_dir,"data.csv")
 
     """ Dataset """
     dataset_path = os.path.join(top_path,"data")

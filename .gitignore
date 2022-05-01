@@ -20,7 +20,12 @@ Tutorials/data_word_embeddings
 *.tsv
 /Cell-Nuclei-Segmentation/data
 /Cell-Nuclei-Segmentation/img
+/Bogdans-Deep-Learning-Sandbox/KaggleHistopathologyDetection/data
 /Cell-Nuclei-Segmentation/UNET/results
 *.md
 *.jpg
 *.png
+*.csv
+*.tif
+/*/data
+/*/trained_model

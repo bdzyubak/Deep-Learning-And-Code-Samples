@@ -11,10 +11,13 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.metrics import Recall, Precision
 from model import build_unet
 from metrics import dice_coef, iou
+import sys
+top_path = os.path.dirname(os.path.dirname(__file__))
+utils_path = os.path.join(top_path,'shared_utils')
+sys.path.append(utils_path)
+from os_utils import make_new_dirs
 
 # Based on this tutorial: https://morioh.com/p/11231a697d59
-
-top_path = os.path.dirname(os.path.dirname(__file__))
 
 H = 256
 W = 256
@@ -26,7 +29,7 @@ def main():
 
     """ Directory to save files """
     model_dir = os.path.join(os.path.dirname(__file__),"trained_model")
-    create_dir(model_dir)
+    make_new_dirs(model_dir)
 
     """ Hyperparaqmeters """
     batch_size = 8
@@ -81,10 +84,6 @@ def main():
         validation_steps=valid_steps,
         callbacks=callbacks
     )
-
-def create_dir(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
 
 def shuffling(x, y):
     x, y = shuffle(x, y, random_state=42)

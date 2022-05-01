@@ -13,12 +13,9 @@ from tensorflow.keras.metrics import Recall, Precision
 from tensorflow.keras.applications import EfficientNetB2
 from metrics import dice_coef, iou
 top_path = os.path.dirname(os.path.dirname(__file__))
-package_path = os.path.dirname(top_path)
-utils_path = os.path.join(package_path,'shared_utils')
+utils_path = os.path.join(top_path,'shared_utils')
 sys.path.append(utils_path)
-from os_utils import list_dir
-
-# Based on this tutorial: https://morioh.com/p/11231a697d59
+from os_utils import list_dir, make_new_dirs
 
 efficient_net_sizes = np.array([224,240,260,300,380,456,528,600])
 
@@ -28,14 +25,15 @@ def main():
     tf.random.set_seed(42)
 
     """ Directory to save files """
-    create_dir("files")
+    model_dir = os.path.join(os.path.dirname(__file__),"trained_model")
+    make_new_dirs(model_dir)
 
     """ Hyperparaqmeters """
     batch_size = 8
     lr = 1e-4   ## 0.0001
     num_epochs = 10
-    model_path = "files/model.h5"
-    csv_path = "files/data.csv"
+    model_path = os.path.join(model_dir,"model.h5")
+    csv_path = os.path.join(model_dir,"data.csv")
 
     """ Dataset """
     (train_x, train_y), (valid_x, valid_y), (test_x, test_y) = load_data(dataset_path)

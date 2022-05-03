@@ -3,13 +3,11 @@ import shutil
 import re
 import glob
 import subprocess
-import pytest
 
 if os.name == 'nt': 
     os_name = 'win'
 else: 
-    os.name = 'lin'
-
+    os_name = 'lin'
 
 def make_new_dirs(folders,clean_subdirs=True):
     if isinstance(folders,str): 

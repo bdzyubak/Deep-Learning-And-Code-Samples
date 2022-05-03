@@ -1,10 +1,6 @@
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 import numpy as np
-import cv2
-from glob import glob
-from sklearn.utils import shuffle
-from sklearn.model_selection import train_test_split
 import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping
 from tensorflow.keras.optimizers import Adam
@@ -13,10 +9,10 @@ from model import build_unet
 from metrics import dice_coef, iou
 import sys
 top_path = os.path.dirname(os.path.dirname(__file__))
-utils_path = os.path.join(top_path,'shared_utils')
+utils_path = os.path.join(os.path.dirname(top_path),'shared_utils')
 sys.path.append(utils_path)
-from os_utils import make_new_dirs, list_dir
-from prep_training_data import prep_data_img_labels
+from os_utils import make_new_dirs
+from prep_training_data import ImgMaskDataset
 
 # Based on this tutorial: https://morioh.com/p/11231a697d59
 
@@ -28,6 +24,9 @@ def main():
     np.random.seed(42)
     tf.random.set_seed(42)
 
+    dataset = ImgMaskDataset(os.path.join(top_path,'data'))
+    dataset.prep_data_img_labels()
+
     """ Directory to save files """
     model_dir = os.path.join(os.path.dirname(__file__),"trained_model")
     make_new_dirs(model_dir)
@@ -38,13 +37,8 @@ def main():
     num_epochs = 10
     model_path = os.path.join(model_dir,"model.h5")
     csv_path = os.path.join(model_dir,"data.csv")
-
-    images_path = os.path.join(top_path,"data",'images')
-    images = list_dir(images_path,target_type='files',mask='*.jpg')
-    masks_path = os.path.join(top_path,"data",'masks')
-    masks = list_dir(masks_path,target_type='files',mask='*.jpg')
-
-    train_dataset, valid_dataset, train_steps, valid_steps = prep_data_img_labels(images,masks,batch_size)
+    
+    # train_dataset, valid_dataset, train_steps, valid_steps = prep_data_img_labels(images,masks,batch_size)
 
     """ Model """
     model = build_unet((H, W, 3))
@@ -66,7 +60,6 @@ def main():
         validation_steps=valid_steps,
         callbacks=callbacks
     )
-
 
 
 if __name__ == "__main__":

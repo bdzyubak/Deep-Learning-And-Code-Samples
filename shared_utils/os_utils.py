@@ -9,6 +9,7 @@ if os.name == 'nt':
 else: 
     os_name = 'lin'
 
+
 def make_new_dirs(folders,clean_subdirs=True):
     if isinstance(folders,str): 
         folders = [folders]
@@ -17,7 +18,7 @@ def make_new_dirs(folders,clean_subdirs=True):
         parent_folder = os.path.dirname(folder)
         if not os.path.exists(parent_folder): 
             os.mkdir(parent_folder)
-        if clean_subdirs: 
+        if clean_subdirs and os.path.exists(folder): 
                 delete_directory(folder)
         if not os.path.exists(folder): 
             os.mkdir(folder)
@@ -46,9 +47,7 @@ def delete_directory(target_directory):
         else: 
             command = 'rm -rf'
 
-        output = subprocess.check_output(command + ' ' + target_directory,shell=True)
-        if output != 0: 
-            raise(OSError('Cannot delete folder.'))
+        error_code = subprocess.check_output(command + ' ' + target_directory,shell=True)
     else: 
         print('Directory to be deleted does not exist: ' + target_directory)
 
@@ -73,4 +72,3 @@ def list_dir(directory,target_type='',mask='*'):
     
     contents = [os.path.join(directory,name) for name in contents]
     return natural_sort(contents)
-

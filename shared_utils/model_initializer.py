@@ -5,27 +5,40 @@ from tensorflow.keras.layers import *
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping
 import importlib
 import os
+from os_utils import make_new_dirs
+from metrics import dice_coef
 
-valid_model_names = ['efficientnet','unet','vgg16','vgg24','resnet50']
+valid_model_names = ['efficientnet','unet','vgg','resnet']
 valid_opt_params = ['learning_rate','num_epochs','batch_size']
 
 class InitializeModel(): 
-    def __init__(self,model_name,params,model_path,base_trainable=True): 
-        self.model_name = model_name
+    def __init__(self,model_name,dataset,model_path,base_trainable=True,params=None): 
+        self.model_name = model_name.lower()
         self.params = params
         self.model_path = model_path
+        self.dataset = dataset
+        make_new_dirs(model_path)
         
         self.set_default_optimization_params() 
 
-        self.pick_model()
+        # Model top layer will always be excluded at this time as the goal is transfer learning 
+        base_model = self.make_model() 
 
-        self.base_model.trainable = base_trainable
+        # The target is mostly medical applications, so by default, enable training of all layers 
+        # i.e. trained ImageNet weights are only used as starting guesses
+        base_model.trainable = base_trainable 
+        self.add_final_layers(base_model)
 
         self.make_callbacks()
+        self.set_loss_function()
+        self.set_optimizer()
+        self.set_metrics()
+        
 
     def check_valid_opt_params(self): 
         print('Supported optimization parameters are: ')
         print(valid_opt_params)
+        return valid_opt_params
     
     def set_optimization_params(self,opt_params:dict): 
         for key in opt_params: 
@@ -38,49 +51,53 @@ class InitializeModel():
     def check_valid_model_names(self): 
         print('Valid model names are: ')
         print(valid_model_names)
+        return valid_model_names
+    
+    # def get_input_shape(self): 
+    #     input_shape = self.dataset.
 
-    def pick_model(self): 
+    def make_model(self): 
+        import_statement, method_name = self.make_import_statement()
+        # Import is being bound to returned variable name. 
+        module = importlib.import_module(import_statement)
+        model = getattr(module,method_name)
+        base_model = model(input_shape=self.dataset.image_dims_original,include_top=False)
+        return base_model
+
+    def make_import_statement(self): 
         model_name = self.model_name
-        try: 
-            if model_name.lower().startswith('efficientnet'): 
-                if not model_name[-1].isdigit(): 
-                    raise(ValueError('Must specify complexity: EfficientNetB0 - B7'))
-                complexity = 'B' + int(model_name[-1])
-                import_statement = 'tf.keras.applications.efficientnet.EfficientNetB' + complexity
-                importlib.import_module(import_statement)
-            elif model_name in valid_model_names: 
-                import_statement = 'tf.keras.applications.' + model_name
-                importlib.import_module(import_statement)
-            else: 
-                self.check_valid_model_names()
-                raise(ValueError('Unsupported model name: ' + model_name))
-        except: 
-            raise(ValueError('Model ' + model_name + ' unsupported by generalized import.'))
+        import_statement = ''
+        method_name = ''
+        complexity = self.get_complexity_from_model_name()
+        if model_name.startswith('efficientnet'): 
+            if not model_name[-1].isdigit(): 
+                raise(ValueError('Must specify complexity: EfficientNetB0 - B7'))
+            import_statement = 'tensorflow.keras.applications.efficientnet' 
+            method_name = 'EfficientNetB' + complexity
+        elif model_name.startswith('vgg'): 
+            import_statement = 'tensorflow.keras.applications.vgg' + complexity
+            method_name =  'VGG' + complexity
+        elif model_name in valid_model_names: 
+            # Generic importer - doesn't hurt to try but generally specific support will need to be enabled
+            import_statement = 'tensorflow.keras.applications.' + model_name
+            method_name = model_name
         
-        self.add_parameters()
-        base_model = eval(model_name+self.params_string)
-        self.base_model = base_model
+        if not import_statement or not method_name: 
+            self.check_valid_model_names()
+            raise(ValueError('Failed to make ' + model_name + ' model with generalized initializer.'))
+        return import_statement, method_name
+    
+    def get_complexity_from_model_name(self): 
+        get_matching_model = [name for name in valid_model_names if self.model_name.startswith(name)][0]
+        complexity = self.model_name.split(get_matching_model)[-1] # Ending digits, if any, indicate complexity
+        if len(complexity) > 5: 
+            raise(ValueError('Model complexity spec too long.')) # Security limiter on arbitrary inputs
+        return complexity
 
-    def add_parameters(self,params:dict): 
-        if not type(params) == 'dict': 
-            raise(ValueError('Parameters must be specified as a dictionary.'))
-        args_string = '('
-        first = True
-        for key in params: 
-            if key not in ['input_shape', 'include_top', 'weights']: 
-                print('Unsupported parameter: ' + key + '. Ignoring.')
-            else: 
-                if not first: 
-                    args_string += ','
-                else: 
-                    first = False
-                args_string += key + '=' + params.key 
-        self.args_string = args_string
-
-    def add_final_layers(self): 
+    def add_final_layers(self,base_model): 
         # TODO: Add ability to accept dictionary of layers 
         self.model = Sequential([
-            self.base_model,
+            base_model,
             Flatten(),
             Dense(64, activation='relu'),
             Dropout(0.5),
@@ -95,36 +112,40 @@ class InitializeModel():
         self.learning_rate = 1e-4   ## 0.0001
         self.num_epochs = 40
 
-    def main(self,model_path,base_trainable=True,lr=0.0001): 
-
-
-        opt = tf.keras.optimizers.Adam(lr)
-        model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy', tf.keras.metrics.AUC()])
-        callbacks = make_callbacks(model_path)
-        run_model(model,callbacks)
-
-    def make_callbacks(model_path):
+    def make_callbacks(self):
+        model_path = self.model_path
         model_path = os.path.join(model_path,"model.h5")
         csv_path = os.path.join(model_path,"data.csv") 
-        callbacks = [
+        self.callbacks = [
             ModelCheckpoint(model_path, verbose=1, save_best_only=True),
             ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, min_lr=1e-7, verbose=1),
             CSVLogger(csv_path),
             EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=False)
         ]
 
-    def run_model(model,callbacks): 
-        # Use steps per epoch rather than batch size since random perumtations of the training data are used, rather than all training data
-        h1 = model.fit(
-            x = train_loader, 
-            steps_per_epoch = TR_STEPS, 
-            epochs = 40,
-            validation_data = valid_loader, 
-            validation_steps = VA_STEPS, 
-            verbose = 1, 
-            callbacks=callbacks
-        )
+    def set_loss_function(self,loss='binary_crossentropy'): 
+        # For now, use binary cross entropy appropriate for mutually exclusive classes
+        # Categorical_crossentry could be used for non-mutually exclusive classes
+        self.loss = loss
 
-# TODO: Define loader and steps calculator
-# TODO: Make into class
-# TODO: Write unite tests
+    def set_optimizer(self): 
+        # For now, always use Adam
+        self.opt = tf.keras.optimizers.Adam(self.learning_rate)
+
+    def set_metrics(self): 
+        # Dice is appropriate for segmentation tasks, accuracy can be used for classification tasks
+        self.metrics =[dice_coef,'accuracy']
+
+    def run_model(self,): 
+        # Use steps per epoch rather than batch size since random perumtations of the training data are used, rather than all training data
+        self.model.compile(loss=self.loss, optimizer=self.opt, metrics=self.metrics)
+        
+        self.history = self.model.fit(
+            x = self.dataset.train_dataset, 
+            steps_per_epoch = self.dataset.train_steps, 
+            epochs = 40,
+            validation_data = self.dataset.valid_dataset, 
+            validation_steps = self.dataset.valid_steps, 
+            verbose = 1, 
+            callbacks=self.callbacks
+        )

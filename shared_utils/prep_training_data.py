@@ -88,29 +88,28 @@ class ImgMaskDataset:
     def shuffling(self,x, y):
         x, y = shuffle(x, y, random_state=42)
 
-    def read_image(self,path):
+    def read_image(self,path,image_type='image'):
         if not isinstance(path,str): 
             path = path.decode()
-        x = cv2.imread(path, cv2.IMREAD_COLOR)
+        if image_type == 'image': 
+            x = cv2.imread(path, cv2.IMREAD_COLOR)
+        elif image_type == 'mask': 
+            x = cv2.resize(x, (self.dims[0], self.dims[1]))
+        else: 
+            raise(ValueError("Trying to read unrecognized image type. Should be 'image' or 'mask'"))
+        
         if self.image_dims_original != self.image_dims_target: 
             x = cv2.resize(x, (self.dims[0], self.dims[1]))
         x = x/255.0
         x = x.astype(np.float32)
-        return x
-
-    def read_mask(self,path):
-        path = path.decode()
-        x = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-        x = cv2.resize(x, (self.dims[0], self.dims[1]))
-        x = x/255.0
-        x = x.astype(np.float32)
-        x = np.expand_dims(x, axis=-1)
+        if len(x.shape)==2: 
+            x = np.expand_dims(x, axis=-1)
         return x
 
     def tf_parse(self, x, y):
         def _parse(x, y):
-            x = self.read_image(x)
-            y = self.read_mask(y)
+            x = self.read_image(x,image_type='image')
+            y = self.read_image(y,image_type='mask')
             return x, y
 
         x, y = tf.numpy_function(_parse, [x, y], [tf.float32, tf.float32])

@@ -7,17 +7,18 @@ import importlib
 import os
 from os_utils import make_new_dirs
 from metrics import dice_coef
-import sys
+from copy import deepcopy
 
-valid_model_names_builtin = ['efficientnet','vgg','resnet']
-valid_model_names_custom = ['unet']
-valid_model_names_all = valid_model_names_builtin + valid_model_names_custom
+valid_models_builtin = {'efficientnet':'class','vgg':'class','resnet':'class'}
+valid_models_custom = {'unet':'segm'}
+
+valid_model_names_all = deepcopy(valid_models_builtin)
+valid_model_names_all.update(valid_models_custom)
 valid_opt_params = ['learning_rate','num_epochs','batch_size']
 
 class InitializeModel(): 
-    def __init__(self,model_name,dataset,model_path,base_trainable=True,params=None): 
+    def __init__(self,model_name,dataset,model_path,base_trainable=True): 
         self.model_name = model_name.lower()
-        self.params = params
         self.model_path = model_path
         self.dataset = dataset
         make_new_dirs(model_path)
@@ -38,7 +39,16 @@ class InitializeModel():
         self.set_loss_function()
         self.set_optimizer()
         self.set_metrics()
-        
+
+    def set_model_type(self):
+        if self.model_name_base not in valid_model_names_all: 
+            raise(ValueError('Unsupported model: ' + self.model_name_base))
+        if valid_model_names_all[self.model_name_base] == 'class': 
+            self.model_type = 'class'
+        elif valid_model_names_all[self.model_name_base] == 'segm': 
+            self.model_type = 'segm'
+        else: 
+            raise(ValueError('Unsupported model type: ' + valid_model_names_all[self.model_name_base]))
 
     def check_valid_opt_params(self): 
         print('Supported optimization parameters are: ')
@@ -61,23 +71,28 @@ class InitializeModel():
     def make_model(self): 
         import_statement, method_name = self.make_import_statement()
         # Import is being bound to returned variable name. 
-        if self.model_name_base in valid_model_names_builtin: 
+        model_args = {'input_shape':self.dataset.image_dims_original}
+        if self.model_name_base in valid_models_builtin: 
             module = importlib.import_module(import_statement)
             model = getattr(module,method_name)
-            base_model = model(input_shape=self.dataset.image_dims_original,include_top=False)
-        elif self.model_name_base in valid_model_names_custom: 
+            if self.model_name_base == 'class': 
+                model_args['include_top'] = False
+        elif self.model_name_base in valid_models_custom: 
             spec = importlib.util.spec_from_file_location(os.path.basename(import_statement), import_statement)
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
             model = getattr(module,method_name)
-            base_model = model(input_shape=self.dataset.image_dims_original)
+            # For now, includ_top is not supported for segmentatin - train model from scratch
+        base_model = model(**model_args)
+        
+        self.set_model_type()
         return base_model
 
     def make_import_statement(self): 
         model_name = self.model_name
         import_statement = ''
         method_name = ''
-        self.model_name_base, complexity = self.get_complexity_from_model_name()
+        complexity = self.get_complexity_from_model_name()
         if model_name.startswith('efficientnet'): 
             if not model_name[-1].isdigit(): 
                 raise(ValueError('Must specify complexity: EfficientNetB0 - B7'))
@@ -86,7 +101,7 @@ class InitializeModel():
         elif model_name.startswith('vgg'): 
             import_statement = 'tensorflow.keras.applications.vgg' + complexity
             method_name =  'VGG' + complexity
-        elif model_name in valid_model_names_builtin: 
+        elif model_name in valid_models_builtin: 
             # Generic importer - doesn't hurt to try but generally specific support will need to be enabled
             import_statement = 'tensorflow.keras.applications.' + model_name
             method_name = model_name
@@ -109,11 +124,23 @@ class InitializeModel():
         complexity = self.model_name.split(model_name_base)[-1] # Ending digits, if any, indicate complexity
         if len(complexity) > 5: 
             raise(ValueError('Model complexity spec too long.')) # Security limiter on arbitrary inputs
-        return model_name_base, complexity
+        self.model_name_base = model_name_base
+        return complexity
 
     def add_final_layers(self,base_model): 
         # TODO: Add ability to accept dictionary of layers 
-        self.model = Sequential([
+        if self.model_type == 'segm': 
+            # For now, don't do transfer learning with segmentation
+            self.add_final_layers_segm(base_model)
+        else: 
+            
+            self.add_final_layers_class(base_model)
+    
+    def add_final_layers_segm(self,base_model): 
+        self.model = base_model
+    
+    def add_final_layers_class(self,base_model): 
+            self.model = Sequential([
             base_model,
             Flatten(),
             Dense(64, activation='relu'),

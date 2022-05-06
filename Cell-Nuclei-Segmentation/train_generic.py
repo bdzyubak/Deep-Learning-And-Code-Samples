@@ -23,7 +23,7 @@ def main():
 
     model_name = 'unet'
     model_path = os.path.join(os.path.dirname(__file__),"trained_model")
-    model = InitializeModel(model_name,dataset,model_path,False,None)
+    model = InitializeModel(model_name,dataset,model_path)
     model.run_model()
 
 if __name__ == "__main__":

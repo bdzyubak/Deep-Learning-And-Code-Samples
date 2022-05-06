@@ -19,9 +19,9 @@ valid_opt_params = ['learning_rate','num_epochs','batch_size']
 class InitializeModel(): 
     def __init__(self,model_name,dataset,model_path,base_trainable=True): 
         self.model_name = model_name.lower()
-        self.model_path = model_path
-        self.dataset = dataset
+        self.model_path = os.path.join(model_path,model_name)
         make_new_dirs(model_path)
+        self.dataset = dataset
         
         self.set_default_optimization_params() 
 
@@ -157,11 +157,10 @@ class InitializeModel():
         self.num_epochs = 40
 
     def make_callbacks(self):
-        model_path = self.model_path
-        model_path = os.path.join(model_path,"model.h5")
-        csv_path = os.path.join(model_path,"data.csv") 
+        trained_model_path = os.path.join(self.model_path,"trained_model_" + self.model_name + ".h5")
+        csv_path = os.path.join(self.model_path,"training_history_"+self.model_name+".csv") 
         self.callbacks = [
-            ModelCheckpoint(model_path, verbose=1, save_best_only=True),
+            ModelCheckpoint(trained_model_path, verbose=1, save_best_only=True),
             ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, min_lr=1e-7, verbose=1),
             CSVLogger(csv_path),
             EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=False)

@@ -15,6 +15,7 @@ class ImgMaskDataset:
         self.data_path = data_path
         self.use_default_subdirs()
         self.set_image_dims_original(self.images[0])
+        self.image_dims_target = self.image_dims_original
         self.set_batch_size(8) # This is the size to fetch data. Different from traning batch size set in the model init
 
 
@@ -94,7 +95,7 @@ class ImgMaskDataset:
         if image_type == 'image': 
             x = cv2.imread(path, cv2.IMREAD_COLOR)
         elif image_type == 'mask': 
-            x = cv2.resize(x, (self.dims[0], self.dims[1]))
+            x = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
         else: 
             raise(ValueError("Trying to read unrecognized image type. Should be 'image' or 'mask'"))
         

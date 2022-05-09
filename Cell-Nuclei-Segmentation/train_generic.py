@@ -8,8 +8,6 @@ sys.path.append(utils_path)
 from prep_training_data import ImgMaskDataset
 from model_initializer import InitializeModel
 
-# Based on this tutorial: https://morioh.com/p/11231a697d59
-
 H = 256
 W = 256
 

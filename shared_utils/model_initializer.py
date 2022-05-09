@@ -17,10 +17,11 @@ valid_model_names_all.update(valid_models_custom)
 valid_opt_params = ['learning_rate','num_epochs','batch_size']
 
 class InitializeModel(): 
-    def __init__(self,model_name,dataset,model_path,base_trainable=True): 
+    def __init__(self,model_name,dataset,model_path,base_trainable=True,continue_training=True): 
         self.model_name = model_name.lower()
         self.model_path = os.path.join(model_path,model_name)
-        make_new_dirs(model_path)
+        self.continue_training = continue_training # Alternative is to train the model fresh, ignoring saved trained model and csv log
+        make_new_dirs(model_path,clean_subdirs=not continue_training)
         self.dataset = dataset
         
         self.set_default_optimization_params() 
@@ -34,7 +35,7 @@ class InitializeModel():
         # TODO: Split off segmentation context. In this case, final layer needs to have the same H and W
         # as the pre-trained one, but should have a flexible number of output channels. 
         self.add_final_layers(base_model)
-
+        
         self.make_callbacks()
         self.set_loss_function()
         self.set_optimizer()
@@ -159,11 +160,18 @@ class InitializeModel():
     def make_callbacks(self):
         trained_model_path = os.path.join(self.model_path,"trained_model_" + self.model_name + ".h5")
         csv_path = os.path.join(self.model_path,"training_history_"+self.model_name+".csv") 
+        if os.path.exists(trained_model_path) and os.path.exists(csv_path): 
+            continue_training = self.continue_training
+            self.model.load_weights(trained_model_path)
+        else: 
+            continue_training = False # Leave the self.continue_training alone for potential exentions to running as a service
+            print('Starting training fresh. No model or history in: ' + trained_model_path)
+
         self.callbacks = [
             ModelCheckpoint(trained_model_path, verbose=1, save_best_only=True),
-            ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=3, min_lr=1e-7, verbose=1),
-            CSVLogger(csv_path),
-            EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=False)
+            ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=3, min_lr=1e-7, verbose=1),
+            CSVLogger(csv_path,append=continue_training),
+            EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
         ]
 
     def set_loss_function(self,loss='binary_crossentropy'): 

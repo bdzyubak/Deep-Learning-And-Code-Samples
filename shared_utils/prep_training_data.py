@@ -6,40 +6,34 @@ import numpy as np
 import os
 from os_utils import list_dir
 
-class ImgMaskDataset: 
+class Dataset: 
     def __init__(self,data_path): 
         # This class is used to initialize a dataset for image segmentation. 
         # It expects parallel image and mask folders to be located in a common data_path
         # There should be one mask for every image, with identical names 
         # Some preprocessing tools are also defined. 
         self.data_path = data_path
-        self.use_default_subdirs()
+        self.path_images, self.images = self.use_default_subdirs(img_type='images')
         self.set_image_dims_original(self.images[0])
         self.image_dims_target = self.image_dims_original
         self.set_batch_size(8) # This is the size to fetch data. Different from traning batch size set in the model init
 
+    def use_default_subdirs(self,img_type): 
+        path = os.path.join(self.data_path,img_type)
+        self.set_subidrs(path)
+        images = self.get_image_and_mask_list(path)
+        return path, images
 
-    def use_default_subdirs(self): 
-        path_images = os.path.join(self.data_path,'images')
-        path_masks = os.path.join(self.data_path,'masks')
-        self.set_subidrs(path_images,path_masks)
-        self.get_image_and_mask_list()
-
-    def set_subidrs(self,path_images:str,path_masks:str): 
-        self.path_images = path_images
-        self.path_masks = path_masks
-        self.get_image_and_mask_list()
+    def set_subidrs(self,path:str): 
+        images = self.get_image_and_mask_list(path)
+        return images
     
-    def get_image_and_mask_list(self): 
+    def get_image_and_mask_list(self,path): 
         # Reset locations of images and masks folders if named in a non-standard way
-        self.images = list_dir(self.path_images,target_type='files')
-        self.masks = list_dir(self.path_masks,target_type='files')
-        if not self.images: 
-            raise(FileNotFoundError('Cannot find image files in: ' + self.path_images))
-        if not self.masks: 
-            raise(FileNotFoundError('Cannot find image files in: ' + self.path_masks))
-        if len(self.images) != len(self.masks): 
-            raise(FileNotFoundError('Mismatched number of image and mask files in: ' + os.path.dirname(self.path_images)))
+        images = list_dir(path,target_type='files')
+        if not images: 
+            raise(FileNotFoundError('Cannot find image files in: ' + images))
+        return images
         
     def set_image_target_dims(self,dims:tuple): 
         if len(dims) != 3: 
@@ -138,6 +132,19 @@ class ImgMaskDataset:
         train_y, test_y = train_test_split(train_y, test_size=size, random_state=42)
 
         return (train_x, train_y), (valid_x, valid_y), (test_x, test_y)
+
+
+class ImgMaskDataset(Dataset): 
+    def __init__(self,data_path): 
+        Dataset.__init__(self,data_path)
+    
+        self.path_masks, self.masks = self.use_default_subdirs(img_type='masks')
+        if len(self.images) != len(self.masks): 
+            raise(FileNotFoundError('Mismatched number of image and mask files in: ' + os.path.dirname(self.path_images)))
+
+# class ImgLabelDataset(Dataset): 
+
+
 
 # class Augment(tf.keras.layers.Layer):
 #   # Use train_batches = (train_images.cache().shuffle(BUFFER_SIZE).batch(BATCH_SIZE).repeat().map(Augment()).prefetch(buffer_size=tf.data.AUTOTUNE))

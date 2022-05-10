@@ -149,7 +149,7 @@ class InitializeModel():
             Dense(32, activation='relu'),
             Dropout(0.5),
             BatchNormalization(),
-            Dense(2, activation='softmax')
+            Dense(2, activation='softmax') # TODO: Use softmax for multiclass and sigmoid for single class. 
         ])
 
     def set_default_optimization_params(self): 

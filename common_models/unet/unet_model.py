@@ -43,7 +43,7 @@ def build_unet(input_shape):
     d4 = decoder_block(d3, s1, 64)
 
     """ Output layer """
-    outputs = Conv2D(1, 1, padding="same", activation="sigmoid")(d4)
+    outputs = Conv2D(1, 1, padding="same", activation="sigmoid")(d4) # TODO: conditionally change to softmax for multiclass
 
     model = Model(inputs, outputs, name="UNET")
     return model

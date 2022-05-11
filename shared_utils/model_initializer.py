@@ -8,6 +8,7 @@ import os
 from os_utils import make_new_dirs
 from metrics import dice_coef
 from copy import deepcopy
+import shutil
 
 valid_models_builtin = {'efficientnet':'class','vgg':'class','resnet':'class'}
 valid_models_custom = {'unet':'segm'}
@@ -154,49 +155,103 @@ class InitializeModel():
 
     def set_default_optimization_params(self): 
         self.batch_size = 32
-        self.learning_rate = 1e-4   ## 0.0001
+        self.learning_rate_base = 1e-3   # 0.0001
         self.num_epochs = 40
 
     def make_callbacks(self):
-        trained_model_path = os.path.join(self.model_path,"trained_model_" + self.model_name + ".h5")
+        trained_model_file = os.path.join(self.model_path,"trained_model_" + self.model_name + ".h5")
         csv_path = os.path.join(self.model_path,"training_history_"+self.model_name+".csv") 
-        if os.path.exists(trained_model_path) and os.path.exists(csv_path): 
+        if os.path.exists(trained_model_file) and os.path.exists(csv_path): 
             continue_training = self.continue_training
-            self.model.load_weights(trained_model_path)
+            self.model.load_weights(trained_model_file)
         else: 
             continue_training = False # Leave the self.continue_training alone for potential exentions to running as a service
-            print('Starting training fresh. No model or history in: ' + trained_model_path)
+            print('Starting training fresh. No model or history in: ' + trained_model_file)
 
         self.callbacks = [
-            ModelCheckpoint(trained_model_path, verbose=1, save_best_only=True),
-            ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=3, min_lr=1e-7, verbose=1),
+            ModelCheckpoint(trained_model_file, verbose=1, save_best_only=True),
+            ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=2, min_lr=1e-7, verbose=1),
             CSVLogger(csv_path,append=continue_training),
             EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
         ]
+
+        self.trained_model_file = trained_model_file
+        self.history_file = csv_path
 
     def set_loss_function(self,loss='binary_crossentropy'): 
         # For now, use binary cross entropy appropriate for mutually exclusive classes
         # Categorical_crossentry could be used for non-mutually exclusive classes
         self.loss = loss
 
-    def set_optimizer(self): 
+    def set_optimizer(self,learning_rate=''): 
         # For now, always use Adam
-        self.opt = tf.keras.optimizers.Adam(self.learning_rate)
+        if not learning_rate: 
+            learning_rate = self.learning_rate_base
+        self.optimizer = tf.keras.optimizers.Adam(learning_rate)
 
     def set_metrics(self): 
         # Dice is appropriate for segmentation tasks, accuracy can be used for classification tasks
         self.metrics =[dice_coef,'accuracy']
 
-    def run_model(self,): 
+    def run_model(self): 
         # Use steps per epoch rather than batch size since random perumtations of the training data are used, rather than all training data
-        self.model.compile(loss=self.loss, optimizer=self.opt, metrics=self.metrics)
+        self.model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
         
         self.history = self.model.fit(
             x = self.dataset.train_dataset, 
             steps_per_epoch = self.dataset.train_steps, 
-            epochs = 40,
+            epochs = 1,
             validation_data = self.dataset.valid_dataset, 
             validation_steps = self.dataset.valid_steps, 
             verbose = 1, 
             callbacks=self.callbacks
         )
+        return self.history
+
+    def try_bypass_local_minimum(self,n_times=1): 
+        # This method is a way to bypass local minima without using stochastic small-batch training. 
+        # Large batches are faster to train but their optimization is smoother and more prone to getting stuck. 
+        # Using large batches and a reasonably high initial starting learning rate, the model should hit a decent accuracy. 
+        # This function can than be used to look for an even better minimum. 
+        # TODO: Consider reducing batch size as well. Initial training can be done with batches as large as memory will allow
+        # but local minima avoidence is better with mini-batches e.g. 32 or 64 examples
+        backup_models = dict() # Model name: csv file
+        backup_models['jump_iter0'] = [self.trained_model_file,self.history_file,self.get_final_epoch_coeff('dice_coef')]
+        
+        for i in range(1,n_times): 
+            backup_file_model = self.make_backup_file(self.trained_model_file,i)
+            backup_file_csv = self.make_backup_file(self.history_file,i)
+            self.set_optimizer()
+            hist = self.run_model() # The optimizer is re-compiled inside to reset individual weights adjusted by Adam
+            backup_models['jump_iter'+str(i)] = [backup_file_model,backup_file_csv,self.get_final_epoch_coeff('dice_coef')]
+        
+        print('Done trying to bypass minima.')
+        self.pick_best_model()
+        
+    def make_backup_file(self, filename, i):
+        extension = '.'+filename.split('.')[-1]
+        backup_file_name = filename.split(extension)[-2] + '_backup'+str(i) + extension
+        shutil.copy(filename,backup_file_name)
+        return backup_file_name
+    
+    def get_final_epoch_coeff(self,type='dice_coef'): 
+        last_iter_coeff = round(self.history.history[type][-1],3)
+        return last_iter_coeff
+
+    def pick_best_model(self,backup_models): 
+        # The default is to compare a value like dice or accuracy where higher is better
+        # If optimal metric is low (e.g. comparing loss) - define a flip scenario in get_final_epoch_coeff and use that as input
+        best_acc = 0
+        update_model = False
+        for key in backup_models: 
+            model_acc = backup_models[key][-1]
+            if model_acc > best_acc: 
+                best_model = backup_models[key]
+                best_acc = model_acc
+                update_model = True
+        if update_model: 
+            print('Updating best model with: ' + best_model.keys()[0])
+            self.make_backup_file(self.trained_model_file,0)
+            self.make_backup_file(self.history_file,0)
+        else: 
+            print('Original model was the best.')

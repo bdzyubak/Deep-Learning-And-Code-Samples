@@ -22,7 +22,8 @@ def main():
     model_name = 'unet'
     model_path = os.path.join(os.path.dirname(__file__),"trained_model")
     model = InitializeModel(model_name,dataset,model_path)
-    model.run_model()
+    history = model.run_model()
+    model.try_bypass_local_minimum(n_times=2)
 
 if __name__ == "__main__":
     main()

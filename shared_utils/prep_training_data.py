@@ -14,15 +14,19 @@ class Dataset:
         # Some preprocessing tools are also defined. 
         self.data_path = data_path
         self.path_images, self.images = self.use_default_subdirs(img_type='images')
-        self.set_image_dims_original(self.images[0])
+        self.set_image_dims_original()
         self.image_dims_target = self.image_dims_original
-        self.set_batch_size(8) # This is the size to fetch data. Different from traning batch size set in the model init
+        self.set_batch_size(32) 
 
     def use_default_subdirs(self,img_type): 
         path = os.path.join(self.data_path,img_type)
         self.set_subidrs(path)
         images = self.get_image_and_mask_list(path)
+        self.num_examples = len(images)
         return path, images
+
+    def get_max_batch_set(self): 
+        self.num_examples
 
     def set_subidrs(self,path:str): 
         images = self.get_image_and_mask_list(path)
@@ -44,7 +48,8 @@ class Dataset:
             self.image_dims_target = dims
         self.image_dims_target = dims
     
-    def set_image_dims_original(self,image_path): 
+    def set_image_dims_original(self): 
+        image_path = self.images[0]
         image = cv2.imread(image_path, cv2.IMREAD_COLOR)
         dims = image.shape
         if len(dims) <2 or len(dims)>3: 
@@ -58,8 +63,9 @@ class Dataset:
     def set_batch_size(self,batch_size): 
         self.batch_size = batch_size
 
-    def prep_data_img_labels(self):
-        batch_size = self.batch_size
+    def prep_data_img_labels(self,batch_size=''):
+        if not batch_size: 
+            batch_size = self.batch_size
         """ Dataset """
         (train_x, train_y), (valid_x, valid_y), (test_x, test_y) = self.load_data(self.images,self.masks)
         train_x, train_y = shuffle(train_x, train_y)

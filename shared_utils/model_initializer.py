@@ -157,6 +157,7 @@ class InitializeModel():
         self.batch_size = 32
         self.learning_rate_base = 1e-3   # 0.0001
         self.num_epochs = 40
+    
 
     def make_callbacks(self):
         trained_model_file = os.path.join(self.model_path,"trained_model_" + self.model_name + ".h5")
@@ -200,7 +201,7 @@ class InitializeModel():
         self.history = self.model.fit(
             x = self.dataset.train_dataset, 
             steps_per_epoch = self.dataset.train_steps, 
-            epochs = 1,
+            epochs = 40, # Set to 1 to debug
             validation_data = self.dataset.valid_dataset, 
             validation_steps = self.dataset.valid_steps, 
             verbose = 1, 

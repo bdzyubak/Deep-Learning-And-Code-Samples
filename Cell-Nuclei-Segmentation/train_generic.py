@@ -23,7 +23,7 @@ def main():
     model_path = os.path.join(os.path.dirname(__file__),"trained_model")
     model = InitializeModel(model_name,dataset,model_path)
     history = model.run_model()
-    model.try_bypass_local_minimum(n_times=2)
+    model.try_bypass_local_minimum(n_times=3)
 
 if __name__ == "__main__":
     main()

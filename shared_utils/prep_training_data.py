@@ -1,3 +1,4 @@
+from cmath import inf
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
@@ -5,6 +6,7 @@ import cv2
 import numpy as np
 import os
 from os_utils import list_dir
+import math
 
 class Dataset: 
     def __init__(self,data_path): 
@@ -25,8 +27,11 @@ class Dataset:
         self.num_examples = len(images)
         return path, images
 
-    def get_max_batch_set(self): 
-        self.num_examples
+    def get_mean_file_size(self): 
+        file_paths = []
+        for path in self.images: 
+            file_paths.append(os.path.getsize(path))
+        return sum(file_paths)/len(file_paths)
 
     def set_subidrs(self,path:str): 
         images = self.get_image_and_mask_list(path)
@@ -60,8 +65,39 @@ class Dataset:
         else: 
             self.image_dims_original= dims
     
+    def get_batch_max_batch_size_for_system_memory(self,memory_factor=0.8): 
+        import psutil
+        available_memory = memory_factor * psutil.virtual_memory().available 
+        available_memory = max([available_memory,50000000000]) # Set to 50 GB max to be respectful to shared system
+        avg_file_size = self.get_mean_file_size()
+        max_batch_size =  available_memory / avg_file_size
+        return max_batch_size
+
     def set_batch_size(self,batch_size): 
-        self.batch_size = batch_size
+        fraction_of_dataset = round(self.num_examples / 10)
+        if batch_size > fraction_of_dataset: 
+            print('Batch size of ' + str(batch_size) + ' exceeds 10 percent of the dataset. \
+             Typically, minibatch optimization is suggested for stability wrt local minima.')
+        
+        max_batch_size = self.get_batch_max_batch_size_for_system_memory()
+        nearest_power_of_two = self.calc_nearest_power_of_two(batch_size,max_batch_size)
+        new_batch_size = min([nearest_power_of_two,self.num_examples]) # Cap at actual number of examples
+        if new_batch_size != batch_size: 
+            print('Setting batch to nearest power of 2 for computational efficiency: ' + str(new_batch_size))
+        self.batch_size = new_batch_size 
+
+    def set_max_batch_size(self): 
+        self.set_batch_size(self.num_examples)
+
+    def calc_nearest_power_of_two(self,batch_size,limit=inf): 
+        # Round value  (e.g. batch size=60) to nearest higher power of two (64).
+        # If exceeds specified limit, use nearest lower power of two (32). 
+        power_of_two = 2**math.ceil(math.log2(batch_size))
+        if power_of_two > limit: 
+            power_of_two = 2**math.floor(math.log2(batch_size))
+        if power_of_two > limit: 
+            raise(ValueError('Error - specified value ' + str(batch_size) + ' exceeds limit ' + str(limit)))
+        return power_of_two
 
     def prep_data_img_labels(self,batch_size=''):
         if not batch_size: 

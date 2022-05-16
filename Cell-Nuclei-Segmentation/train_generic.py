@@ -18,6 +18,7 @@ def main():
 
     dataset = ImgMaskDataset(os.path.join(top_path,'data'))
     dataset.prep_data_img_labels()
+    dataset.set_max_batch_size()
 
     model_name = 'unet'
     model_path = os.path.join(os.path.dirname(__file__),"trained_model")

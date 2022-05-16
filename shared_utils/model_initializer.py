@@ -18,11 +18,11 @@ valid_model_names_all.update(valid_models_custom)
 valid_opt_params = ['learning_rate','num_epochs','batch_size']
 
 class InitializeModel(): 
-    def __init__(self,model_name,dataset,model_path,base_trainable=True,continue_training=True): 
+    def __init__(self,model_name,dataset,model_path,base_trainable=True,train_fresh=False): 
         self.model_name = model_name.lower()
         self.model_path = os.path.join(model_path,model_name)
-        self.continue_training = continue_training # Alternative is to train the model fresh, ignoring saved trained model and csv log
-        make_new_dirs(model_path,clean_subdirs=not continue_training)
+        self.train_fresh = train_fresh # Alternative is to train the model fresh, ignoring saved trained model and csv log
+        make_new_dirs(model_path,clean_subdirs=train_fresh)
         self.dataset = dataset
         
         self.set_default_optimization_params() 
@@ -162,8 +162,8 @@ class InitializeModel():
     def make_callbacks(self):
         trained_model_file = os.path.join(self.model_path,"trained_model_" + self.model_name + ".h5")
         csv_path = os.path.join(self.model_path,"training_history_"+self.model_name+".csv") 
-        if os.path.exists(trained_model_file) and os.path.exists(csv_path): 
-            continue_training = self.continue_training
+        if (os.path.exists(trained_model_file) and os.path.exists(csv_path)) and not self.train_fresh: 
+            continue_training = not self.train_fresh
             self.model.load_weights(trained_model_file)
         else: 
             continue_training = False # Leave the self.continue_training alone for potential exentions to running as a service
@@ -201,7 +201,7 @@ class InitializeModel():
         self.history = self.model.fit(
             x = self.dataset.train_dataset, 
             steps_per_epoch = self.dataset.train_steps, 
-            epochs = 40, # Set to 1 to debug
+            epochs = 1, # Set to 1 to debug
             validation_data = self.dataset.valid_dataset, 
             validation_steps = self.dataset.valid_steps, 
             verbose = 1, 
@@ -227,7 +227,7 @@ class InitializeModel():
             backup_models['jump_iter'+str(i)] = [backup_file_model,backup_file_csv,self.get_final_epoch_coeff('dice_coef')]
         
         print('Done trying to bypass minima.')
-        self.pick_best_model()
+        self.pick_best_model(backup_models)
         
     def make_backup_file(self, filename, i):
         extension = '.'+filename.split('.')[-1]
@@ -251,8 +251,8 @@ class InitializeModel():
                 best_acc = model_acc
                 update_model = True
         if update_model: 
-            print('Updating best model with: ' + best_model.keys()[0])
-            self.make_backup_file(self.trained_model_file,0)
-            self.make_backup_file(self.history_file,0)
+            print('Updating best model with: ' + best_model[0])
+            shutil.copy(best_model[0],self.trained_model_file) 
+            shutil.copy(best_model[1],self.history_file) 
         else: 
             print('Original model was the best.')

@@ -77,7 +77,7 @@ class InitializeModel():
         if self.model_name_base in valid_models_builtin: 
             module = importlib.import_module(import_statement)
             model = getattr(module,method_name)
-            if self.model_name_base == 'class': 
+            if valid_models_builtin[self.model_name_base] == 'class': 
                 model_args['include_top'] = False
         elif self.model_name_base in valid_models_custom: 
             spec = importlib.util.spec_from_file_location(os.path.basename(import_statement), import_statement)
@@ -123,7 +123,7 @@ class InitializeModel():
 
     def get_complexity_from_model_name(self): 
         model_name_base = [name for name in valid_model_names_all if self.model_name.startswith(name)][0]
-        complexity = self.model_name.split(model_name_base)[-1] # Ending digits, if any, indicate complexity
+        complexity = self.model_name[-1] # Ending digits, if any, indicate complexity
         if len(complexity) > 5: 
             raise(ValueError('Model complexity spec too long.')) # Security limiter on arbitrary inputs
         self.model_name_base = model_name_base
@@ -201,7 +201,7 @@ class InitializeModel():
         self.history = self.model.fit(
             x = self.dataset.train_dataset, 
             steps_per_epoch = self.dataset.train_steps, 
-            epochs = 1, # Set to 1 to debug
+            epochs = 40, # Set to 1 to debug
             validation_data = self.dataset.valid_dataset, 
             validation_steps = self.dataset.valid_steps, 
             verbose = 1, 

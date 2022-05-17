@@ -7,6 +7,7 @@ import numpy as np
 import os
 from os_utils import list_dir
 import math
+import pandas as pd
 
 class Dataset: 
     def __init__(self,data_path): 
@@ -15,12 +16,12 @@ class Dataset:
         # There should be one mask for every image, with identical names 
         # Some preprocessing tools are also defined. 
         self.data_path = data_path
-        self.path_images, self.images = self.use_default_subdirs(img_type='images')
+        self.path_images, self.images = self.use_default_image_dir(img_type='images')
         self.set_image_dims_original()
         self.image_dims_target = self.image_dims_original
-        self.set_batch_size(32) 
-
-    def use_default_subdirs(self,img_type): 
+        self.__set_batch_size(32) 
+        
+    def use_default_image_dir(self,img_type): 
         path = os.path.join(self.data_path,img_type)
         self.set_subidrs(path)
         images = self.get_image_and_mask_list(path)
@@ -73,7 +74,7 @@ class Dataset:
         max_batch_size =  available_memory / avg_file_size
         return max_batch_size
 
-    def set_batch_size(self,batch_size): 
+    def __set_batch_size(self,batch_size): 
         fraction_of_dataset = round(self.num_examples / 10)
         if batch_size > fraction_of_dataset: 
             print('Batch size of ' + str(batch_size) + ' exceeds 10 percent of the dataset. \
@@ -86,8 +87,26 @@ class Dataset:
             print('Setting batch to nearest power of 2 for computational efficiency: ' + str(new_batch_size))
         self.batch_size = new_batch_size 
 
+    def set_batch_size(self,batch_size): 
+        self.__set_batch_size(batch_size)
+        self.calc_train_steps()
+
     def set_max_batch_size(self): 
         self.set_batch_size(self.num_examples)
+    
+    def calc_train_steps(self): 
+        train_x = self.train_dataset
+        valid_x = self.valid_dataset
+        batch_size = self.batch_size
+
+        self.train_steps = round((len(train_x)/batch_size))
+        self.valid_steps = round((len(valid_x)/batch_size))
+
+        if len(train_x) % batch_size != 0:
+            self.train_steps += 1
+
+        if len(valid_x) % batch_size != 0:
+            self.valid_steps += 1 
 
     def calc_nearest_power_of_two(self,batch_size,limit=inf): 
         # Round value  (e.g. batch size=60) to nearest higher power of two (64).
@@ -98,29 +117,6 @@ class Dataset:
         if power_of_two > limit: 
             raise(ValueError('Error - specified value ' + str(batch_size) + ' exceeds limit ' + str(limit)))
         return power_of_two
-
-    def prep_data_img_labels(self,batch_size=''):
-        if not batch_size: 
-            batch_size = self.batch_size
-        """ Dataset """
-        (train_x, train_y), (valid_x, valid_y), (test_x, test_y) = self.load_data(self.images,self.masks)
-        train_x, train_y = shuffle(train_x, train_y)
-
-        print(f"Train: {len(train_x)} - {len(train_y)}")
-        print(f"Valid: {len(valid_x)} - {len(valid_y)}")
-        print(f"Test: {len(test_x)} - {len(test_y)}")
-
-        self.train_dataset = self.tf_dataset(train_x, train_y)
-        self.valid_dataset = self.tf_dataset(valid_x, valid_y)
-
-        self.train_steps = (len(train_x)//batch_size)
-        self.valid_steps = (len(valid_x)//batch_size)
-
-        if len(train_x) % batch_size != 0:
-            self.train_steps += 1
-
-        if len(valid_x) % batch_size != 0:
-            self.valid_steps += 1
 
     def shuffling(self,x, y):
         x, y = shuffle(x, y, random_state=42)
@@ -161,7 +157,35 @@ class Dataset:
         dataset = dataset.batch(self.batch_size)
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
         return dataset
+    
+    # def visualize_pos_neg_value_split(self): 
+    #     # Placeholder to visualize split of classes. If significantly imbalanced - use balanced/weighted loss function
+    #     train['label'].value_counts() / len(train)
 
+
+class ImgMaskDataset(Dataset): 
+    def __init__(self,data_path): 
+        Dataset.__init__(self,data_path)
+    
+        self.path_masks, self.masks = self.use_default_image_dir(img_type='masks')
+        self.prep_data_img_labels()
+        
+        if len(self.images) != len(self.masks): 
+            raise(FileNotFoundError('Mismatched number of image and mask files in: ' + os.path.dirname(self.path_images)))
+
+    def prep_data_img_labels(self):
+        batch_size = self.batch_size
+        """ Dataset """
+        (train_x, train_y), (valid_x, valid_y), (test_x, test_y) = self.load_data(self.images,self.masks)
+        train_x, train_y = shuffle(train_x, train_y)
+
+        print(f"Train: {len(train_x)} - {len(train_y)}")
+        print(f"Valid: {len(valid_x)} - {len(valid_y)}")
+        print(f"Test: {len(test_x)} - {len(test_y)}")
+
+        self.train_dataset = self.tf_dataset(train_x, train_y)
+        self.valid_dataset = self.tf_dataset(valid_x, valid_y)
+    
     def load_data(self, images, masks, split=0.2):
         size = int(len(images) * split)
 
@@ -176,17 +200,48 @@ class Dataset:
         return (train_x, train_y), (valid_x, valid_y), (test_x, test_y)
 
 
-class ImgMaskDataset(Dataset): 
+class ImgLabelDataset(Dataset): 
     def __init__(self,data_path): 
         Dataset.__init__(self,data_path)
-    
-        self.path_masks, self.masks = self.use_default_subdirs(img_type='masks')
-        if len(self.images) != len(self.masks): 
-            raise(FileNotFoundError('Mismatched number of image and mask files in: ' + os.path.dirname(self.path_images)))
+        self.data_path = data_path
+        self.read_labels_from_excel()
+        self.train_val_split()
+        self.calc_train_steps()
 
-# class ImgLabelDataset(Dataset): 
+        # if len(self.images) != len(self.masks): 
+        #     raise(FileNotFoundError('Mismatched number of image and mask files in: ' + os.path.dirname(self.path_images)))
 
+    def read_labels_from_excel(self): 
+        data_labels = pd.read_csv(os.path.join(self.data_path,'labels.csv'), dtype=str)
+        data_labels.id = data_labels.id + '.tif'
+        self.data_labels = data_labels
+        
+    def train_val_split(self): 
+        from sklearn.model_selection import train_test_split
+        train_df, valid_df = train_test_split(self.data_labels, test_size=0.2, random_state=1, stratify=self.data_labels.label) 
 
+        self.train_dataset, TR_STEPS = self.make_random_data_generator(train_df)
+        self.valid_dataset, VA_STEPS = self.make_random_data_generator(valid_df)
+
+    def make_random_data_generator(self,df):
+        from tensorflow.keras.preprocessing.image import ImageDataGenerator
+        datagen = ImageDataGenerator(rescale=1/255)
+        # Make a training data loader which yields random perumtations of training data with a given batch size
+        image_path = os.path.join(self.data_path,'images')
+        loader = datagen.flow_from_dataframe(
+            dataframe = df,
+            directory = image_path,
+            x_col = 'id',
+            y_col = 'label',
+            batch_size = self.batch_size,
+            seed = 1,
+            shuffle = True,
+            class_mode = 'categorical',
+            target_size = (96,96)
+        )
+        
+        num_steps = len(loader)
+        return loader, num_steps
 
 # class Augment(tf.keras.layers.Layer):
 #   # Use train_batches = (train_images.cache().shuffle(BUFFER_SIZE).batch(BATCH_SIZE).repeat().map(Augment()).prefetch(buffer_size=tf.data.AUTOTUNE))

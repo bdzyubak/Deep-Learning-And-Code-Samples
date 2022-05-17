@@ -9,6 +9,7 @@ from os_utils import make_new_dirs
 from metrics import dice_coef
 from copy import deepcopy
 import shutil
+import matplotlib.pyplot as plt
 
 valid_models_builtin = {'efficientnet':'class','vgg':'class','resnet':'class'}
 valid_models_custom = {'unet':'segm'}
@@ -256,3 +257,24 @@ class InitializeModel():
             shutil.copy(best_model[1],self.history_file) 
         else: 
             print('Original model was the best.')
+
+    def vis_training(self, start=1):
+        history = self.history
+        epoch_range = range(start, len(history['loss'])+1)
+        s = slice(start-1, None)
+
+        plt.figure(figsize=[14,4])
+
+        n = int(len(history.keys()) / 2)
+
+        for i in range(n):
+            k = list(h.keys())[i]
+            plt.subplot(1,n,i+1)
+            plt.plot(epoch_range, history[k][s], label='Training')
+            plt.plot(epoch_range, history['val_' + k][s], label='Validation')
+            plt.xlabel('Epoch'); plt.ylabel(k); plt.title(k)
+            plt.grid()
+            plt.legend()
+
+        plt.tight_layout()
+        plt.show()

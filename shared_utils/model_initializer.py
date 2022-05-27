@@ -6,12 +6,16 @@ from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPla
 import importlib
 import os
 from os_utils import make_new_dirs
+from string_utils import get_trailing_digits
 from metrics import dice_coef
 from copy import deepcopy
 import shutil
 import matplotlib.pyplot as plt
 
-valid_models_builtin = {'efficientnet':'class','vgg':'class','resnet':'class'}
+# NOTE: Tested on 2.9.1 - earlier versions do not support all of these models
+valid_models_builtin = {'efficientnet':'class','efficientnet_v2':'class','densenet':'class', 'vgg':'class',
+ 'inception':'class', 'inception_resnet': 'class','resnet': 'class', 'resnet_v2': 'class', 'resnet_rs': 'class',
+ 'regnet': 'class', 'mobilenet': 'class', 'mobilenet_v2': 'class', 'mobilenet_v3': 'class', 'xception': 'class'} 
 valid_models_custom = {'unet':'segm'}
 
 valid_model_names_all = deepcopy(valid_models_builtin)
@@ -23,6 +27,8 @@ class InitializeModel():
         self.model_name = model_name.lower()
         self.model_path = os.path.join(model_path,model_name)
         self.train_fresh = train_fresh # Alternative is to train the model fresh, ignoring saved trained model and csv log
+        self.get_complexity_from_model_name()
+        self.set_model_type()
         make_new_dirs(model_path,clean_subdirs=train_fresh)
         self.dataset = dataset
         
@@ -88,26 +94,14 @@ class InitializeModel():
             # For now, includ_top is not supported for segmentatin - train model from scratch
         base_model = model(**model_args)
         
-        self.set_model_type()
         return base_model
 
     def make_import_statement(self): 
         model_name = self.model_name
         import_statement = ''
         method_name = ''
-        complexity = self.get_complexity_from_model_name()
-        if model_name.startswith('efficientnet'): 
-            if not model_name[-1].isdigit(): 
-                raise(ValueError('Must specify complexity: EfficientNetB0 - B7'))
-            import_statement = 'tensorflow.keras.applications.efficientnet' 
-            method_name = 'EfficientNetB' + complexity
-        elif model_name.startswith('vgg'): 
-            import_statement = 'tensorflow.keras.applications.vgg' + complexity
-            method_name =  'VGG' + complexity
-        elif model_name in valid_models_builtin: 
-            # Generic importer - doesn't hurt to try but generally specific support will need to be enabled
-            import_statement = 'tensorflow.keras.applications.' + model_name
-            method_name = model_name
+        if self.model_name_base in valid_models_builtin: 
+            import_statement, method_name = self.make_import_statement_builtin()
         elif model_name.startswith('unet'): 
             import_statement = self.make_path_to_custom_models()
             method_name = 'build_unet'
@@ -116,19 +110,83 @@ class InitializeModel():
             self.check_valid_model_names()
             raise(ValueError('Failed to make ' + model_name + ' model with generalized initializer.'))
         return import_statement, method_name
+
+    def make_import_statement_builtin(self):
+        # Default name/method name
+        import_statement = 'tensorflow.keras.applications.' + self.model_name_base
+        
+        # Modify default for some models
+        if self.model_name_base.startswith('efficientnet'): 
+            method_name = 'EfficientNet'
+            method_name = self.append_version(method_name)
+            self.model_complexity = self.model_complexity.upper()
+        elif self.model_name_base == 'densenet': 
+            method_name = 'DenseNet'
+            self.check_model_complexity_spec(method_name)
+        elif self.model_name_base == 'vgg': 
+            method_name = 'VGG'
+            import_statement += self.model_complexity
+            self.check_model_complexity_spec(method_name)
+        elif self.model_name_base == 'inception': 
+            method_name = 'InceptionV3'
+            import_statement += '_v3'
+        elif self.model_name_base == 'inception_resnet': 
+            method_name = 'InceptionResNetV2'
+            import_statement += '_v2'
+        elif self.model_name_base.startswith('resnet'): 
+            method_name = 'ResNet'
+            self.check_model_complexity_spec(method_name)
+            if '_rs' in self.model_name_base: 
+                method_name += 'RS'
+        elif self.model_name_base.startswith('regnet'): 
+            method_name = 'RegNet'
+            self.check_model_complexity_spec(method_name)
+        elif self.model_name_base.startswith('mobilenet'): 
+            method_name = 'MobileNet'
+            method_name = self.append_version(method_name)
+            import_statement = 'tensorflow.keras.applications'
+        elif self.model_name_base.startswith('xception'): 
+            method_name = 'Xception'
+            method_name = self.append_version(method_name)
+        else: 
+            raise(ValueError('Failed to split model name and complexity: ' + self.model_name_base))
+        # elif self.model_name_base == 'nasnet': 
+        #     method_name = 'NASNetLarge'
+        
+        method_name += self.model_complexity
+        if self.model_name_base.startswith('resnet'): 
+            method_name = self.append_version(method_name)
+        
+        return import_statement, method_name
     
+    def append_version(self,method_name): 
+        if '_v2' in self.model_name_base: 
+                method_name += 'V2'
+        elif '_v3' in self.model_name_base: 
+                method_name += 'V3'
+        return method_name
+
+    def check_model_complexity_spec(self,method_name): 
+        if not self.model_complexity: 
+            print('Refer to : https://www.tensorflow.org/api_docs/python/tf/keras/applications. For model complexity options.')
+            raise(ValueError('Must specify complexity: ' + method_name + ' followed by a valid architecture size.'))
+
     def make_path_to_custom_models(self): 
         package_top = os.path.dirname(os.path.dirname(__file__))
         model_module_path = os.path.join(package_top,'common_models',self.model_name,self.model_name+'_model.py')
         return model_module_path
 
     def get_complexity_from_model_name(self): 
-        model_name_base = [name for name in valid_model_names_all if self.model_name.startswith(name)][0]
-        complexity = self.model_name[-1] # Ending digits, if any, indicate complexity
-        if len(complexity) > 5: 
+        model_name_base = [name for name in valid_model_names_all if self.model_name.startswith(name)]
+        if not model_name_base: 
+            raise(ValueError('Requested base model not supported: ' + self.model_name))
+        else:
+            self.model_name_base = max(model_name_base,key=len)
+            self.model_complexity = self.model_name.split(self.model_name_base)[-1]
+            self.model_complexity = self.model_complexity.replace('small','Small')
+            self.model_complexity = self.model_complexity.replace('large','Large')
+        if len(self.model_complexity) > 12: 
             raise(ValueError('Model complexity spec too long.')) # Security limiter on arbitrary inputs
-        self.model_name_base = model_name_base
-        return complexity
 
     def add_final_layers(self,base_model): 
         # TODO: Add ability to accept dictionary of layers 

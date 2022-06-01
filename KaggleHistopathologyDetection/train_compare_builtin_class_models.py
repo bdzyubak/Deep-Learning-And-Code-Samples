@@ -19,6 +19,9 @@ def main():
     tf.random.set_seed(42)
     
     for model_name in models_list: 
+        print('Training ' + model_name)
+        print('')
+        print('')
         initialize_train_model(model_name)
 
     # ToDO: Read model and compare test set accuracy. Do this only at release when hyperparameters won't be tuned anymore

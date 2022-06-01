@@ -278,7 +278,7 @@ class InitializeModel():
         backup_models = dict() # Model name: csv file
         backup_models['jump_iter0'] = [self.trained_model_file,self.history_file,self.get_final_epoch_coeff('dice_coef')]
         
-        for i in range(1,n_times): 
+        for i in range(1,n_times+1): 
             backup_file_model = self.make_backup_file(self.trained_model_file,i)
             backup_file_csv = self.make_backup_file(self.history_file,i)
             self.set_optimizer()
@@ -302,17 +302,18 @@ class InitializeModel():
         # The default is to compare a value like dice or accuracy where higher is better
         # If optimal metric is low (e.g. comparing loss) - define a flip scenario in get_final_epoch_coeff and use that as input
         best_acc = 0
-        update_model = False
-        for key in backup_models: 
-            model_acc = backup_models[key][-1]
-            if model_acc > best_acc: 
-                best_model = backup_models[key]
-                best_acc = model_acc
-                update_model = True
-        if update_model: 
-            print('Updating best model with: ' + best_model[0])
-            shutil.copy(best_model[0],self.trained_model_file) 
-            shutil.copy(best_model[1],self.history_file) 
+        best_model = ''
+        for model in backup_models: 
+            accuracy = backup_models[model][2]
+            if best_acc>0: 
+                best_acc = accuracy
+            elif accuracy > best_acc: 
+                best_model = model
+
+        if best_model: 
+            print('Updating best model with: ' + best_model)
+            shutil.copy(backup_models[best_model][0],self.trained_model_file) 
+            shutil.copy(backup_models[best_model][1],self.history_file) 
         else: 
             print('Original model was the best.')
 

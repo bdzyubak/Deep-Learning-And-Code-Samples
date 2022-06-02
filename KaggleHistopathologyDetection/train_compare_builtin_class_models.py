@@ -7,9 +7,8 @@ utils_path = os.path.join(os.path.dirname(top_path),'shared_utils')
 sys.path.append(utils_path)
 from prep_training_data import ImgLabelDataset
 from model_initializer import InitializeModel
-# models_list = ['inception']
 models_list = ['DenseNet121','efficientnetB0','efficientnet_v2B0','vgg16','inception','resnet50','resnet_v250',
-'resnet_rs101','inception_resnet','regnetx002','regnety002','mobilenet','mobilenet_v2','mobilenet_v3Small',
+'resnet_rs101','inception_resnet','regnetX002','regnetY002','mobilenet','mobilenet_v2','mobilenet_v3Small',
 'mobilenet_v3Large','xception']
 dataset = ImgLabelDataset(os.path.join(top_path,'data','train'))
 

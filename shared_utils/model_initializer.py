@@ -12,7 +12,7 @@ from copy import deepcopy
 import shutil
 import matplotlib.pyplot as plt
 
-# NOTE: Tested on 2.9.1 - earlier versions do not support all of these models
+# NOTE: Tested on Tensorflow 2.9.1 - earlier versions do not support all of these models
 valid_models_builtin = {'efficientnet':'class','efficientnet_v2':'class','densenet':'class', 'vgg':'class',
  'inception':'class', 'inception_resnet': 'class','resnet': 'class', 'resnet_v2': 'class', 'resnet_rs': 'class',
  'regnet': 'class', 'mobilenet': 'class', 'mobilenet_v2': 'class', 'mobilenet_v3': 'class', 'xception': 'class'} 
@@ -140,6 +140,7 @@ class InitializeModel():
                 method_name += 'RS'
         elif self.model_name_base.startswith('regnet'): 
             method_name = 'RegNet'
+            self.model_complexity = self.model_complexity.upper()
             self.check_model_complexity_spec(method_name)
         elif self.model_name_base.startswith('mobilenet'): 
             method_name = 'MobileNet'

@@ -39,6 +39,13 @@ def natural_sort(dir_list):
     return sorted(dir_list, key=alphanum_key)
 
 
+def delete(target): 
+    if os.path.isdir(target):
+        delete_directory(target)
+    elif os.path.exists(target):
+        os.remove(target)
+
+
 def delete_directory(target_directory): 
     # This module uses OS calls to speed up removal of large numbers of files compared to shutil's rmtree
     if os.path.exists(target_directory): 
@@ -47,12 +54,14 @@ def delete_directory(target_directory):
         else: 
             command = 'rm -rf'
 
-        error_code = subprocess.check_output(command + ' ' + target_directory,shell=True)
+        output = subprocess.check_output(command + ' ' + target_directory,shell=True)
+        if output: 
+            print('Cannot delete directory - check file lock: ' + target_directory)
     else: 
         print('Directory to be deleted does not exist: ' + target_directory)
 
 
-def list_dir(directory,target_type='',mask='*'): 
+def list_dir(directory,mask='*',target_type='',file_name_only=False): 
     contents = glob.glob(os.path.join(directory,mask))
     
     if not isinstance(directory,str) or not isinstance(target_type,str) or not isinstance(mask,str): 
@@ -71,4 +80,26 @@ def list_dir(directory,target_type='',mask='*'):
         contents = [name for name in contents if os.path.isdir(name)]
     
     contents = [os.path.join(directory,name) for name in contents]
+    if file_name_only: 
+        contents = [os.path.basename(name) for name in contents]
     return natural_sort(contents)
+
+def copy_dir(source,destination): 
+    make_new_dirs(destination) # Attempt to make target directory (will recreate limited number of levels)
+    if not source.endswith('*'): 
+        contents = [source]
+    else: 
+        contents = list_dir(source[:-1]) 
+    for content in contents: 
+        copy(content,destination)
+
+
+def copy(source,destination): 
+    if not os.path.exists(source): 
+        raise(OSError('Source to copy does not exist: ' + source))
+    if not os.path.exists(destination) or not os.path.isdir(destination): 
+        raise(OSError('Copy target directory does not exist: ' + destination))
+    if os.path.isfile(source): 
+        shutil.copy(source,os.path.join(destination,os.path.basename(source)))
+    elif os.path.isdir(source): 
+        shutil.copytree(source,os.path.join(destination,os.path.basename(source)))

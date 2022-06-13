@@ -1,7 +1,7 @@
 import pytest
 import os
 import glob
-from  os_utils import make_new_dirs, list_dir, natural_sort, delete_directory, copy_dir
+from  os_utils import make_new_dirs, make_parent_dirs, list_dir, natural_sort, delete_directory, copy_dir
 import shutil
 temp_subdir = os.path.join(os.path.dirname(__file__),'temp')
 temp_target = os.path.join(os.path.dirname(temp_subdir),'temp_target')
@@ -10,7 +10,7 @@ test_files = ['file1.dcm','file.png','SERIES0001.dcm']
 test_contents = test_dirs + test_files
 test_content_paths_dirs = [os.path.join(temp_subdir,name) for name in test_dirs]
 test_content_paths_files = [os.path.join(temp_subdir,name) for name in test_files]
-test_content_paths = [os.path.join(temp_subdir,name) for name in test_dirs]
+test_content_paths = [os.path.join(temp_subdir,name) for name in test_contents]
 
 def make_test_dirs(): 
     make_new_dirs(test_content_paths_dirs)
@@ -22,6 +22,17 @@ def make_test_dirs():
 def test_make_new_dirs(): 
     created_dirs = [name for name in glob.glob(os.path.join(temp_subdir,'*')) if os.path.isdir(name)] 
     assert set(created_dirs) == set(test_content_paths_dirs), 'Failed to make target dirs.'
+
+def test_make_parent_dirs(): 
+    nesting = 5
+    temp_nested = temp_subdir
+    for i in range(nesting): 
+        temp_nested = os.path.join(temp_nested,'temp'+str(i))
+
+    make_parent_dirs(temp_nested,max_nesting=5)
+    made_all_nested_dirs = os.path.exists(os.path.dirname(temp_nested)) # Expect parent dirs only 
+    shutil.rmtree(os.path.join(temp_subdir,'temp0'))
+    assert made_all_nested_dirs, 'Failed to make nested folders.'
 
 def test_list_dir(): 
     assert list_dir(temp_subdir,target_type='') == natural_sort(test_content_paths), 'General sorting error.'

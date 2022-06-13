@@ -10,19 +10,27 @@ else:
     os_name = 'lin'
 
 
-def make_new_dirs(folders,clean_subdirs=True):
+def make_new_dirs(folders,clean_subdirs=True,max_nesting=1):
     if isinstance(folders,str): 
         folders = [folders]
     for folder in folders:
-        # Also make parent folder 1 level up e.g. making /data/train will also make /data. Used for shared folders. 
-        parent_folder = os.path.dirname(folder)
-        if not os.path.exists(parent_folder): 
-            os.mkdir(parent_folder)
+        # Also make parent folders n levels up. 
+        make_parent_dirs(folder,max_nesting)
         if clean_subdirs and os.path.exists(folder): 
                 delete_directory(folder)
         if not os.path.exists(folder): 
             os.mkdir(folder)
 
+def make_parent_dirs(folder,max_nesting): 
+    nesting = 0
+    folder_level_not_exists = os.path.dirname(folder)
+    folders_to_make = list()
+    while not os.path.exists(folder_level_not_exists) and nesting <= max_nesting: 
+        folders_to_make.append(folder_level_not_exists)
+        folder_level_not_exists = os.path.dirname(folder_level_not_exists)
+        nesting += 1
+    for make_folder in folders_to_make[::-1]: 
+        os.mkdir(make_folder)
 
 def move_and_merge_dirs(origin_dir_name, target_dir_name):
     contents = glob.glob(os.path.join(origin_dir_name,'*'))

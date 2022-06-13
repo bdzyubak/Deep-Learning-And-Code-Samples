@@ -11,6 +11,8 @@ from metrics import dice_coef
 from copy import deepcopy
 import shutil
 import matplotlib.pyplot as plt
+from timeit import default_timer as timer
+import pandas as pd
 
 # NOTE: Tested on Tensorflow 2.9.1 - earlier versions do not support all of these models
 valid_models_builtin = {'efficientnet':'class','efficientnet_v2':'class','densenet':'class', 'vgg':'class',
@@ -195,7 +197,7 @@ class InitializeModel():
             # For now, don't do transfer learning with segmentation
             self.add_final_layers_segm(base_model)
         else: 
-            
+
             self.add_final_layers_class(base_model)
     
     def add_final_layers_segm(self,base_model): 
@@ -217,7 +219,6 @@ class InitializeModel():
         self.batch_size = 32
         self.learning_rate_base = 1e-3   # 0.0001
         self.num_epochs = 40
-    
 
     def make_callbacks(self):
         trained_model_file = os.path.join(self.model_path,"trained_model_" + self.model_name + ".h5")
@@ -229,15 +230,22 @@ class InitializeModel():
             continue_training = False # Leave the self.continue_training alone for potential exentions to running as a service
             print('Starting training fresh. No model or history in: ' + trained_model_file)
 
+        self.timing_callback = TimingCallback()
         self.callbacks = [
             ModelCheckpoint(trained_model_file, verbose=1, save_best_only=True),
             ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=2, min_lr=1e-7, verbose=1),
             CSVLogger(csv_path,append=continue_training),
-            EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+            EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True),
+            self.timing_callback
         ]
 
         self.trained_model_file = trained_model_file
         self.history_file = csv_path
+    
+    def log_timings(self): 
+        df = pd.read_csv(self.history_file)
+        df['epoch_time'] = self.timing_callback.logs
+        df.to_csv(self.history_file)
 
     def set_loss_function(self,loss='binary_crossentropy'): 
         # For now, use binary cross entropy appropriate for mutually exclusive classes
@@ -267,6 +275,8 @@ class InitializeModel():
             verbose = 1, 
             callbacks=self.callbacks
         )
+
+        self.log_timings()
         return self.history
 
     def try_bypass_local_minimum(self,n_times=1): 
@@ -338,3 +348,11 @@ class InitializeModel():
 
         plt.tight_layout()
         plt.show()
+
+class TimingCallback(keras.callbacks.Callback):
+    def __init__(self, logs={}):
+        self.logs=[]
+    def on_epoch_begin(self, epoch, logs={}):
+        self.starttime = timer()
+    def on_epoch_end(self, epoch, logs={}):
+        self.logs.append(timer()-self.starttime)

@@ -40,6 +40,7 @@ class CompareModels():
     def get_final_metrics(self,model_name,metrics_list): 
         history_file_name = os.path.join(self.models_path,model_name,'training_history_'+model_name.lower() + '.csv')
         df = pd.read_csv(history_file_name)
+        # Insert slicing of time-metrics and interpretationa as cumulative time, not last time point
         metrics = df[metrics_list].iloc[-1]
         final_metrics = pd.concat([pd.Series({'model':model_name}),metrics])
         return final_metrics

@@ -25,13 +25,13 @@ valid_model_names_all.update(valid_models_custom)
 valid_opt_params = ['learning_rate','num_epochs','batch_size']
 
 class InitializeModel(): 
-    def __init__(self,model_name,dataset,model_path,base_trainable=True,train_fresh=False): 
+    def __init__(self,model_name,dataset,model_path_top,base_trainable=True,train_fresh=False): 
         self.model_name = model_name.lower()
-        self.model_path = os.path.join(model_path,model_name)
+        self.model_path = os.path.join(model_path_top,model_name)
         self.train_fresh = train_fresh # Alternative is to train the model fresh, ignoring saved trained model and csv log
         self.get_complexity_from_model_name()
         self.set_model_type()
-        make_new_dirs(model_path,clean_subdirs=train_fresh)
+        make_new_dirs(self.model_path,clean_subdirs=train_fresh)
         self.dataset = dataset
         
         self.set_default_optimization_params() 
@@ -218,7 +218,7 @@ class InitializeModel():
     def set_default_optimization_params(self): 
         self.batch_size = 32
         self.learning_rate_base = 1e-3   # 0.0001
-        self.num_epochs = 40
+        self.num_epochs = 40 # Set to 1 to debug
 
     def make_callbacks(self):
         trained_model_file = os.path.join(self.model_path,"trained_model_" + self.model_name + ".h5")
@@ -265,11 +265,12 @@ class InitializeModel():
     def run_model(self): 
         # Use steps per epoch rather than batch size since random perumtations of the training data are used, rather than all training data
         self.model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
-        
+        self.timing_callback.clear_logs()
+
         self.history = self.model.fit(
             x = self.dataset.train_dataset, 
             steps_per_epoch = self.dataset.train_steps, 
-            epochs = 40, # Set to 1 to debug
+            epochs = self.num_epochs, 
             validation_data = self.dataset.valid_dataset, 
             validation_steps = self.dataset.valid_steps, 
             verbose = 1, 
@@ -356,3 +357,5 @@ class TimingCallback(keras.callbacks.Callback):
         self.starttime = timer()
     def on_epoch_end(self, epoch, logs={}):
         self.logs.append(timer()-self.starttime)
+    def clear_logs(self): 
+        self.logs=[]

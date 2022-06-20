@@ -10,10 +10,10 @@ sys.path.append(utils_path)
 from compare_trained_models import CompareModels
 
 
-# models_list = ['DenseNet121','efficientnetB0','efficientnet_v2B0','vgg16','inception','resnet50','resnet_v250',
-# 'resnet_rs101','inception_resnet','regnetX002','regnetY002','mobilenet','mobilenet_v2','mobilenet_v3Small',
-# 'mobilenet_v3Large','xception']
-models_list = ['regnetY002','efficientnetB0']
+models_list = ['DenseNet121','efficientnetB0','efficientnet_v2B0','vgg16','inception','resnet50','resnet_v250',
+'resnet_rs101','inception_resnet','regnetX002','regnetY002','mobilenet','mobilenet_v2','mobilenet_v3Small',
+'mobilenet_v3Large','xception']
+# models_list = ['regnetY002','efficientnetB0']
 trained_model_dir = os.path.join(top_path,'trained_model')
 metrics_list = ['dice_coef','val_dice_coef']
 column_names = ['model']+metrics_list

@@ -3,6 +3,8 @@ import shutil
 import re
 import glob
 import subprocess
+if os.name == 'nt':
+    import win32com.client
 
 if os.name == 'nt': 
     os_name = 'win'
@@ -38,6 +40,15 @@ def move_and_merge_dirs(origin_dir_name, target_dir_name):
         shutil.move(content,os.path.join(target_dir_name,os.path.basename(content)))
     delete_directory(origin_dir_name)
 
+def resolve_symlink(link): 
+    if os.name == 'nt':
+        # According to documentation, os.path.realpath shoudl work on windows but it has no effect
+        shell = win32com.client.Dispatch("WScript.Shell")
+        shortcut = shell.CreateShortCut(link)
+        path_digest = shortcut.Targetpath
+    else:
+        path_digest = os.path.realpath(link)
+    return path_digest
 
 def natural_sort(dir_list):
     # Function for sorting files/directories/other lists in natural order and not 1, 10, 100, 2, 20... 
@@ -92,6 +103,14 @@ def list_dir(directory,mask='*',target_type='',file_name_only=False):
         contents = [os.path.basename(name) for name in contents]
     return natural_sort(contents)
 
+def list_files(directory,mask='*',file_name_only=False): 
+    files = list_dir(directory=directory,mask=mask,file_name_only=file_name_only,target_type='files')
+    return files
+
+def list_directories(directory,mask='*',file_name_only=False): 
+    folders = list_dir(directory=directory,mask=mask,file_name_only=file_name_only,target_type='folders')
+    return folders
+
 def copy_dir(source,destination): 
     make_new_dirs(destination) # Attempt to make target directory (will recreate limited number of levels)
     if not source.endswith('*'): 
@@ -100,7 +119,6 @@ def copy_dir(source,destination):
         contents = list_dir(source[:-1]) 
     for content in contents: 
         copy(content,destination)
-
 
 def copy(source,destination): 
     if not os.path.exists(source): 
@@ -111,3 +129,21 @@ def copy(source,destination):
         shutil.copy(source,os.path.join(destination,os.path.basename(source)))
     elif os.path.isdir(source): 
         shutil.copytree(source,os.path.join(destination,os.path.basename(source)))
+
+def extract_file_from_container(exec,result_dir,file): 
+    target_file = os.path.join(result_dir, file)
+    if os.name == 'nt': 
+        shutil.copyfile(os.path.join(exec,'mreplus_config',file),target_file)
+    else: 
+        os.system('docker exec ' + exec + ' /bin/bash -c "' + 'cat mreplus_config/' + file + ' > ' \
+            + target_file + '"')
+    return target_file
+
+def parent_dir(path,level,dir_only=False): 
+    path = str(Path(path).parents[level-1])
+    if dir_only: 
+        path = os.path.basename(path)
+    return path
+
+def parent_dir_name(path,level): 
+    return parent_dir(path,level,dir_only=True)

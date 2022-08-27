@@ -13,6 +13,8 @@ from os_utils import list_dir
 from matplotlib import pyplot as plt
 from IPython import display
 
+# Implementation of the Pix2Pix GAN tutorial from the Tensorflow team, with some refactoring: https://www.tensorflow.org/tutorials/generative/pix2pix
+
 # The facade training set consist of 400 images
 BUFFER_SIZE = 400
 # The batch size of 1 produced better results for the U-Net in the original pix2pix experiment

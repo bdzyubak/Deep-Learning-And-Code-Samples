@@ -2,11 +2,9 @@ import os
 import numpy as np
 import tensorflow as tf
 import sys
+from shared_utils.prep_training_data import ImgMaskDataset
+from shared_utils.model_initializer import InitializeModel
 top_path = os.path.dirname(__file__)
-utils_path = os.path.join(os.path.dirname(top_path),'shared_utils')
-sys.path.append(utils_path)
-from prep_training_data import ImgMaskDataset
-from model_initializer import InitializeModel
 
 H = 256
 W = 256

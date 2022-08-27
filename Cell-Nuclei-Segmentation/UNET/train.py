@@ -7,15 +7,11 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.metrics import Recall, Precision
 from model import build_unet
 from metrics import dice_coef, iou
-import sys
-top_path = os.path.dirname(os.path.dirname(__file__))
-utils_path = os.path.join(os.path.dirname(top_path),'shared_utils')
-sys.path.append(utils_path)
-from os_utils import make_new_dirs
-from prep_training_data import ImgMaskDataset
+from shared_utils.os_utils import make_new_dirs
+from shared_utils.prep_training_data import ImgMaskDataset
 
 # Based on this tutorial: https://morioh.com/p/11231a697d59
-
+top_path = os.path.dirname(os.path.dirname(__file__))
 H = 256
 W = 256
 

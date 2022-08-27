@@ -20,7 +20,7 @@ class Dataset:
         self.set_image_dims_original()
         self.image_dims_target = self.image_dims_original
         self.__set_batch_size(32) 
-        
+
     def use_default_image_dir(self,img_type): 
         path = os.path.join(self.data_path,img_type)
         self.set_subidrs(path)

@@ -5,7 +5,7 @@ import tensorflow as tf
 import cv2
 import numpy as np
 import os
-from os_utils import list_dir
+from shared_utils.os_utils import list_dir
 import math
 import pandas as pd
 

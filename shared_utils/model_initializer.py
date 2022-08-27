@@ -5,14 +5,15 @@ from tensorflow.keras.layers import Flatten, Dense, Dropout, BatchNormalization
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping
 import importlib
 import os
-from shared_utils.os_utils import make_new_dirs
-from shared_utils.string_utils import get_trailing_digits
-from metrics import dice_coef
 from copy import deepcopy
 import shutil
 import matplotlib.pyplot as plt
 from timeit import default_timer as timer
 import pandas as pd
+
+from shared_utils.os_utils import make_new_dirs
+from shared_utils.string_utils import get_trailing_digits
+from shared_utils.metrics import dice_coef
 
 # NOTE: Tested on Tensorflow 2.9.1 - earlier versions do not support all of these models
 valid_models_builtin = {'efficientnet':'class','efficientnet_v2':'class','densenet':'class', 'vgg':'class',

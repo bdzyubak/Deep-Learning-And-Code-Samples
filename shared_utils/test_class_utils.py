@@ -1,5 +1,5 @@
 import pytest
-from class_utils import print_instance_attributes
+from shared_utils.class_utils import print_instance_attributes
 
 def test_print_instance_attributes():
     test_class = TestClass()

@@ -2,13 +2,9 @@ import tensorflow as tf
 
 import os
 import pathlib
-import sys
 import time
 import datetime
-top_path = os.path.dirname(__file__)
-utils_path = os.path.join(os.path.dirname(top_path),'shared_utils')
-sys.path.append(utils_path)
-from os_utils import list_dir
+from shared_utils.os_utils import list_dir
 
 from matplotlib import pyplot as plt
 from IPython import display

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set() # Override plt plotting styles with prettier ones. Still use plt code
 import sys
-from os_utils import list_dir
+from shared_utils.os_utils import list_dir
 metrics_get_final = ['dice_coef','val_dice_coef','loss','val_loss']
 metrics_get_total = ['epoch_time']
 metrics_list = metrics_get_final + metrics_get_total

@@ -1,5 +1,5 @@
 import pytest
-import model_initializer
+from shared_utils import model_initializer
 import importlib
 
 @pytest.fixture

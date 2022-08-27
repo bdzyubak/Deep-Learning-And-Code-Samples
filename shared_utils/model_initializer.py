@@ -5,8 +5,8 @@ from tensorflow.keras.layers import Flatten, Dense, Dropout, BatchNormalization
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping
 import importlib
 import os
-from os_utils import make_new_dirs
-from string_utils import get_trailing_digits
+from shared_utils.os_utils import make_new_dirs
+from shared_utils.string_utils import get_trailing_digits
 from metrics import dice_coef
 from copy import deepcopy
 import shutil

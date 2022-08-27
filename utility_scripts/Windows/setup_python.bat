@@ -11,4 +11,6 @@ python -m pip install matplotlib
 python -m pip install IPython
 python -m pip install seaborn
 python -m pip install pydot
+python -m pip install sklearn
+python -m pip install opendatasets
 pause

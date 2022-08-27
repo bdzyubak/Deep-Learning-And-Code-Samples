@@ -1,7 +1,7 @@
 import pytest
 import os
 import glob
-from  os_utils import make_new_dirs, make_parent_dirs, list_dir, natural_sort, delete_directory, copy_dir
+from  shared_utils.os_utils import make_new_dirs, make_parent_dirs, list_dir, natural_sort, delete_directory, copy_dir
 import shutil
 temp_subdir = os.path.join(os.path.dirname(__file__),'temp')
 temp_target = os.path.join(os.path.dirname(temp_subdir),'temp_target')

@@ -1,5 +1,5 @@
 import pytest
-from string_utils import get_trailing_digits
+from shared_utils.string_utils import get_trailing_digits
 
 def test_get_trailing_digits(): 
     with pytest.raises(ValueError):

@@ -3,13 +3,25 @@ import shutil
 import re
 import glob
 import subprocess
-if os.name == 'nt':
-    import win32com.client
+from pathlib import Path
+from typing import Union
 
 if os.name == 'nt': 
     os_name = 'win'
 else: 
     os_name = 'lin'
+
+"""A utilities module for making, finding, and interacting with directories and the OS. 
+
+Import individual functions for smoother interactions e.g. 
+
+from shared_utils.os_utils import list_dir
+
+contents = list_files(directory)
+# Instead of: contents = [os.path.join(directory,name) for name in os.listdir(directory)]
+# or: contents = glob.glob(os.path.join(directory,'*'))
+
+"""
 
 
 def make_new_dirs(folders,clean_subdirs=True,max_nesting=1):
@@ -40,15 +52,18 @@ def move_and_merge_dirs(origin_dir_name, target_dir_name):
         shutil.move(content,os.path.join(target_dir_name,os.path.basename(content)))
     delete_directory(origin_dir_name)
 
-def resolve_symlink(link): 
-    if os.name == 'nt':
-        # According to documentation, os.path.realpath shoudl work on windows but it has no effect
-        shell = win32com.client.Dispatch("WScript.Shell")
-        shortcut = shell.CreateShortCut(link)
-        path_digest = shortcut.Targetpath
-    else:
-        path_digest = os.path.realpath(link)
-    return path_digest
+# This project does not currently use simlinks, but resolve symlink would require a win32com dependency
+# def resolve_symlink(link): 
+#     if os.name == 'nt':
+#         # According to documentation, os.path.realpath shoudl work on windows but it has no effect
+#         if os.name == 'nt':
+#             import win32com.client
+#         shell = win32com.client.Dispatch("WScript.Shell")
+#         shortcut = shell.CreateShortCut(link)
+#         path_digest = shortcut.Targetpath
+#     else:
+#         path_digest = os.path.realpath(link)
+#     return path_digest
 
 def natural_sort(dir_list):
     # Function for sorting files/directories/other lists in natural order and not 1, 10, 100, 2, 20... 
@@ -72,8 +87,8 @@ def delete_directory(target_directory):
             command = 'rmdir /s /q'
         else: 
             command = 'rm -rf'
-
-        output = subprocess.check_output(command + ' ' + target_directory,shell=True)
+        
+        output = subprocess.check_output(command + add_argument(target_directory),shell=True)
         if output: 
             print('Cannot delete directory - check file lock: ' + target_directory)
     else: 
@@ -81,13 +96,13 @@ def delete_directory(target_directory):
 
 
 def list_dir(directory,mask='*',target_type='',file_name_only=False): 
-    contents = glob.glob(os.path.join(directory,mask))
-    
     if not isinstance(directory,str) or not isinstance(target_type,str) or not isinstance(mask,str): 
         raise(TypeError('Directory, type, and mask need to be strings.'))
 
     if not os.path.exists(directory) or not os.path.isdir(directory): 
         raise(OSError('Input directory not valid.'))
+
+    contents = glob.glob(os.path.join(directory,mask))
         
     # Mask to only return files or folders
     if target_type == 'files': 
@@ -98,7 +113,6 @@ def list_dir(directory,mask='*',target_type='',file_name_only=False):
     elif target_type == 'folders': 
         contents = [name for name in contents if os.path.isdir(name)]
     
-    contents = [os.path.join(directory,name) for name in contents]
     if file_name_only: 
         contents = [os.path.basename(name) for name in contents]
     return natural_sort(contents)
@@ -130,6 +144,14 @@ def copy(source,destination):
     elif os.path.isdir(source): 
         shutil.copytree(source,os.path.join(destination,os.path.basename(source)))
 
+def move_contents(source,destination): 
+    contents = list_dir(source)
+    if not os.path.exists(destination): 
+        make_new_dirs(destination)
+    for content in contents: 
+        shutil.move(content,destination)
+    os.remove(source)
+
 def extract_file_from_container(exec,result_dir,file): 
     target_file = os.path.join(result_dir, file)
     if os.name == 'nt': 
@@ -147,3 +169,39 @@ def parent_dir(path,level,dir_only=False):
 
 def parent_dir_name(path,level): 
     return parent_dir(path,level,dir_only=True)
+
+def enclose_in_quotes(cmd): 
+    """ Enclose a path in quotes for OS calls. Do not use internall for python arguments. """
+    return '"' + cmd + '"'
+
+def add_argument(arg): 
+    if arg.startswith('-'): 
+        return ' ' + arg
+    else: 
+        return ' ' + enclose_in_quotes(arg)
+
+def add_dir_reenclose(path:str,dirs:Union[str,list]) -> str: 
+    """ Add subdir(s) to path, keeping enclosed in quotes. 
+
+    Takes a path which may or may not be enclosed in quotes and adds one or more subdirectories, 
+      enclosing the result in quotes to deal with spaces in path names. Only run this if you are 
+      using a system call. Python does not need and will object to quotes in paths e.g. os.listdir(r"C:\")
+
+    Args:
+        path (str): The original path. 
+        dirs (str or list): Subdirectory(ies) to add to the path
+
+    Returns:
+        combined_path (str): The total combined path, enclosed in quotes
+    """
+
+    if path.startswith('"') or path.startswith('\''): 
+        path = path[1:]
+    if path.endswith('"') or path.endswith('\''): 
+        path = path[:-1]
+    if not isinstance(dirs,list): 
+        dirs = [dirs]
+    for dir in dirs: 
+        path = os.path.join(path,dir)
+    combined_path = enclose_in_quotes(path)
+    return combined_path

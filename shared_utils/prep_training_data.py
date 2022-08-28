@@ -16,7 +16,7 @@ class Dataset:
         # There should be one mask for every image, with identical names 
         # Some preprocessing tools are also defined. 
         self.data_path = data_path
-        self.images = self.make_image_dirs(path_images)
+        self.images, self.path_images = self.make_image_dirs(path_images)
         self.set_image_dims_original()
         self.image_dims_target = self.image_dims_original
         self.batch_size = 32
@@ -24,15 +24,13 @@ class Dataset:
     def make_image_dirs(self,path_images): 
         if not path_images: 
             path_images = os.path.join(self.data_path,'images')
-        else: 
-            path_images = path_images
         images = self.get_image_list(path_images)
         num_examples = len(images)
         if hasattr(self, 'num_images'): 
             if num_examples != self.num_examples: 
                 raise(OSError('Number of images and labels mismatched. Curate datapoints.'))
         self.num_examples = num_examples
-        return images
+        return images, path_images
 
     def get_mean_file_size(self): 
         file_paths = []
@@ -183,7 +181,7 @@ class ImgMaskDataset(Dataset):
         # Initializes self.image_paths, self.images
         Dataset.__init__(self,data_path,image_path)
         # Initializes self.path_masks, self.masks 
-        self.masks = self.make_image_dirs(mask_path)
+        self.masks, self.path_masks = self.make_image_dirs(mask_path)
 
         self.prep_data_img_labels()
 
@@ -217,22 +215,23 @@ class ImgMaskDataset(Dataset):
 
 
 class ImgLabelDataset(Dataset): 
-    def __init__(self,data_path): 
+    def __init__(self,data_path,path_images='',path_labels=''): 
         # Initializes self.path_images, self.images. 
-        Dataset.__init__(self,data_path)
+        Dataset.__init__(self,data_path,path_images)
         # Initializes self.data_labels 
         self.data_path = data_path
-        self.read_labels_from_excel()
+        self.read_labels_from_excel(path_labels)
         self.train_val_split()
         self.calc_train_steps()
 
-        # if len(self.images) != len(self.masks): 
-        #     raise(FileNotFoundError('Mismatched number of image and mask files in: ' + os.path.dirname(self.path_images)))
-
-    def read_labels_from_excel(self): 
-        data_labels = pd.read_csv(os.path.join(self.data_path,'labels.csv'), dtype=str)
+    def read_labels_from_excel(self,path_labels): 
+        if not path_labels: 
+            path_labels = os.path.join(self.data_path,'labels.csv')
+        data_labels = pd.read_csv(path_labels, dtype=str)
         data_labels.id = data_labels.id + '.tif'
         self.data_labels = data_labels
+        if len(data_labels) != len(self.images): 
+            raise(OSError('Number of images and labels mismatched. Curate datapoints.'))
         
     def train_val_split(self): 
         from sklearn.model_selection import train_test_split
@@ -245,7 +244,7 @@ class ImgLabelDataset(Dataset):
         from tensorflow.keras.preprocessing.image import ImageDataGenerator
         datagen = ImageDataGenerator(rescale=1/255)
         # Make a training data loader which yields random perumtations of training data with a given batch size
-        image_path = os.path.join(self.data_path,'images')
+        image_path = self.path_images
         loader = datagen.flow_from_dataframe(
             dataframe = df,
             directory = image_path,

@@ -10,35 +10,37 @@ import math
 import pandas as pd
 
 class Dataset: 
-    def __init__(self,data_path): 
+    def __init__(self,data_path,path_images=''): 
         # This class is used to initialize a dataset for image segmentation. 
         # It expects parallel image and mask folders to be located in a common data_path
         # There should be one mask for every image, with identical names 
         # Some preprocessing tools are also defined. 
         self.data_path = data_path
-        self.path_images, self.images = self.use_default_image_dir(img_type='images')
+        self.images = self.make_image_dirs(path_images)
         self.set_image_dims_original()
         self.image_dims_target = self.image_dims_original
-        self.__set_batch_size(32) 
+        self.batch_size = 32
 
-    def use_default_image_dir(self,img_type): 
-        path = os.path.join(self.data_path,img_type)
-        self.set_subidrs(path)
-        images = self.get_image_and_mask_list(path)
-        self.num_examples = len(images)
-        return path, images
+    def make_image_dirs(self,path_images): 
+        if not path_images: 
+            path_images = os.path.join(self.data_path,'images')
+        else: 
+            path_images = path_images
+        images = self.get_image_list(path_images)
+        num_examples = len(images)
+        if hasattr(self, 'num_images'): 
+            if num_examples != self.num_examples: 
+                raise(OSError('Number of images and labels mismatched. Curate datapoints.'))
+        self.num_examples = num_examples
+        return images
 
     def get_mean_file_size(self): 
         file_paths = []
         for path in self.images: 
             file_paths.append(os.path.getsize(path))
         return sum(file_paths)/len(file_paths)
-
-    def set_subidrs(self,path:str): 
-        images = self.get_image_and_mask_list(path)
-        return images
     
-    def get_image_and_mask_list(self,path): 
+    def get_image_list(self,path:str): 
         # Reset locations of images and masks folders if named in a non-standard way
         images = list_dir(path,target_type='files')
         if not images: 
@@ -95,6 +97,19 @@ class Dataset:
         self.set_batch_size(self.num_examples)
     
     def calc_train_steps(self): 
+        """ Calculate the number of training steps based on dataset siez
+            TODO: Remvoe argument for valid dataset/output of valid train steps once train/valid 
+            split is fully handled by tensorflow at train time. 
+
+        Args:
+            self.train_dataset (tf.dataset): The training data in tf.dataset form
+            self.valid_dataset (tf.dataset): The validation data in tf.dataset form
+            self.batch_size (int): The size of batches to use in training
+
+        Returns:
+            self.train_steps (int): The number of training steps to run
+            self.valid_steps (int): The number of validation steps to run
+        """
         train_x = self.train_dataset
         valid_x = self.valid_dataset
         batch_size = self.batch_size
@@ -164,14 +179,14 @@ class Dataset:
 
 
 class ImgMaskDataset(Dataset): 
-    def __init__(self,data_path): 
-        Dataset.__init__(self,data_path)
-    
-        self.path_masks, self.masks = self.use_default_image_dir(img_type='masks')
+    def __init__(self,data_path,image_path='',mask_path=''): 
+        # Initializes self.image_paths, self.images
+        Dataset.__init__(self,data_path,image_path)
+        # Initializes self.path_masks, self.masks 
+        self.masks = self.make_image_dirs(mask_path)
+
         self.prep_data_img_labels()
-        
-        if len(self.images) != len(self.masks): 
-            raise(FileNotFoundError('Mismatched number of image and mask files in: ' + os.path.dirname(self.path_images)))
+
 
     def prep_data_img_labels(self):
         batch_size = self.batch_size
@@ -185,6 +200,7 @@ class ImgMaskDataset(Dataset):
 
         self.train_dataset = self.tf_dataset(train_x, train_y)
         self.valid_dataset = self.tf_dataset(valid_x, valid_y)
+        self.calc_train_steps()
     
     def load_data(self, images, masks, split=0.2):
         size = int(len(images) * split)
@@ -202,7 +218,9 @@ class ImgMaskDataset(Dataset):
 
 class ImgLabelDataset(Dataset): 
     def __init__(self,data_path): 
+        # Initializes self.path_images, self.images. 
         Dataset.__init__(self,data_path)
+        # Initializes self.data_labels 
         self.data_path = data_path
         self.read_labels_from_excel()
         self.train_val_split()

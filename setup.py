@@ -37,7 +37,7 @@ os.system('python -m pip install --upgrade pip')
 dependencies = ['pydicom','pandas','tensorflow','tensorflow_datasets'
             ,'scikit-image', 'opencv-python', 'matplotlib', 'IPython'
             ,'seaborn', 'pydot', 'sklearn','opendatasets', 'pytest'
-            ,'git+https://github.com/tensorflow/examples.git']
+            ,'psutil','git+https://github.com/tensorflow/examples.git']
  
 for dep in dependencies: 
     os.system('python -m pip install --upgrade ' + dep)

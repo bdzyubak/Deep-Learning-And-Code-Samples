@@ -16,12 +16,12 @@ W = 256
 
 def main(): 
     download_if_not_exist(data_path,url="https://www.kaggle.com/datasets/anasmohammedtahir/covidqu") 
-    dataset_path, path_images, path_masks = get_path_lung_segm_normal(data_path) # Do normal only for now; change variable name from global
+    training_data_paths = get_path_training_lung_segm_normal(data_path) # Do normal only for now; change variable name from global
     
     """ Seeding """
     np.random.seed(42)
     tf.random.set_seed(42)
-    dataset = ImgMaskDataset(dataset_path,path_images,path_masks)
+    dataset = ImgMaskDataset(training_data_paths['data_path_top'],training_data_paths['path_images'],training_data_paths['path_labels'])
     dataset.prep_data_img_labels()
 
     model_name = 'unet'
@@ -29,15 +29,15 @@ def main():
     model = InitializeModel(model_name,dataset,model_path)
     model.run_model()
 
-def get_path_lung_segm_normal(data_path): 
+def get_path_training_lung_segm_normal(data_path): 
     # Function to dig down to unusual data locations for the covidqu dataset
     dataset_path = os.path.join(data_path, "Lung Segmentation Data","Lung Segmentation Data"
     ,"Train","Normal")
-    paths_training = dict()
-    paths_training['dataset_path'] = dataset_path
-    paths_training['train']['path_images'] = os.path.join(dataset_path,'images')
-    paths_training['train']['path_labels'] = os.path.join(dataset_path,'lung masks')
-    return paths_training
+    paths = dict()
+    paths['data_path_top'] = dataset_path
+    paths['path_images'] = os.path.join(dataset_path,'images')
+    paths['path_labels'] = os.path.join(dataset_path,'lung masks')
+    return paths
 
 if __name__ == "__main__":
     main()

@@ -20,7 +20,7 @@ class Dataset:
         self.set_image_dims_original()
         self.image_dims_target = self.image_dims_original
         self.batch_size = 32
-        self.set_seed(self,42) 
+        self.set_seed(42) 
 
     def make_image_dirs(self,path_images): 
         if not path_images: 

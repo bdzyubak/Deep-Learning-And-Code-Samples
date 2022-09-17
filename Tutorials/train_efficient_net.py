@@ -16,9 +16,6 @@ from tensorflow.keras.applications import EfficientNetB0
 
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
-top_path = os.path.dirname(__file__)
-utils_path = os.path.join(os.path.dirname(top_path),'shared_utils')
-sys.path.append(utils_path)
 from os_utils import make_new_dirs
 
 # Made for Kaggle Pathology Slide dataset: https://www.kaggle.com/code/taylorkern/tk-efficientnet

@@ -1,0 +1,15 @@
+ipython
+matplotlib
+numpy
+opencv_python
+opendatasets
+pandas
+psutil
+pytest
+scikit_image
+scikit_learn
+scipy
+seaborn
+tensorflow
+tensorflow_examples
+tqdm

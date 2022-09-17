@@ -20,6 +20,7 @@ class Dataset:
         self.set_image_dims_original()
         self.image_dims_target = self.image_dims_original
         self.batch_size = 32
+        self.set_seed(self,42) 
 
     def make_image_dirs(self,path_images): 
         if not path_images: 
@@ -171,6 +172,11 @@ class Dataset:
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
         return dataset
     
+    def set_seed(self,seed): 
+        self.seed = seed
+        np.random.seed(seed)
+        tf.random.set_seed(seed)
+
     # def visualize_pos_neg_value_split(self): 
     #     # Placeholder to visualize split of classes. If significantly imbalanced - use balanced/weighted loss function
     #     train['label'].value_counts() / len(train)
@@ -184,7 +190,6 @@ class ImgMaskDataset(Dataset):
         self.masks, self.path_masks = self.make_image_dirs(mask_path)
 
         self.prep_data_img_labels()
-
 
     def prep_data_img_labels(self):
         batch_size = self.batch_size
@@ -204,12 +209,12 @@ class ImgMaskDataset(Dataset):
         size = int(len(images) * split)
 
         # Split data into train and val sets
-        train_x, valid_x = train_test_split(images, test_size=size, random_state=42)
-        train_y, valid_y = train_test_split(masks, test_size=size, random_state=42)
+        train_x, valid_x = train_test_split(images, test_size=size, random_state=self.seed)
+        train_y, valid_y = train_test_split(masks, test_size=size, random_state=self.seed)
 
         # Further split off a test set from train
-        train_x, test_x = train_test_split(train_x, test_size=size, random_state=42)
-        train_y, test_y = train_test_split(train_y, test_size=size, random_state=42)
+        train_x, test_x = train_test_split(train_x, test_size=size, random_state=self.seed)
+        train_y, test_y = train_test_split(train_y, test_size=size, random_state=self.seed)
 
         return (train_x, train_y), (valid_x, valid_y), (test_x, test_y)
 
@@ -235,7 +240,7 @@ class ImgLabelDataset(Dataset):
         
     def train_val_split(self): 
         from sklearn.model_selection import train_test_split
-        train_df, valid_df = train_test_split(self.data_labels, test_size=0.2, random_state=1, stratify=self.data_labels.label) 
+        train_df, valid_df = train_test_split(self.data_labels, test_size=0.2, random_state=self.seed, stratify=self.data_labels.label) 
 
         self.train_dataset, TR_STEPS = self.make_random_data_generator(train_df)
         self.valid_dataset, VA_STEPS = self.make_random_data_generator(valid_df)
@@ -266,8 +271,9 @@ class ImgLabelDataset(Dataset):
 #   def __init__(self, seed=42):
 #     super().__init__()
 #     # both use the same seed, so they'll make the same random changes.
-#     self.augment_inputs = tf.keras.layers.RandomFlip(mode="horizontal", seed=seed)
-#     self.augment_labels = tf.keras.layers.RandomFlip(mode="horizontal", seed=seed)
+#     self.seed = seed
+#     self.augment_inputs = tf.keras.layers.RandomFlip(mode="horizontal", seed=self.seed)
+#     self.augment_labels = tf.keras.layers.RandomFlip(mode="horizontal", seed=self.seed)
 
 #   def call(self, inputs, labels):
 #     inputs = self.augment_inputs(inputs)

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 sns.set() # Override plt plotting styles with prettier ones. Still use plt code
 import sys
-from shared_utils.compare_trained_models import CompareModels
+from compare_trained_models import CompareModels
 
 top_path = os.path.dirname(__file__)
 models_list = ['DenseNet121','efficientnetB0','efficientnet_v2B0','vgg16','inception','resnet50','resnet_v250',

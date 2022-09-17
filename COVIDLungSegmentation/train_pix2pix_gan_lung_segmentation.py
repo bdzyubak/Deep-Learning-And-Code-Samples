@@ -33,11 +33,9 @@ def get_path_lung_segm_normal(data_path):
     # Function to dig down to unusual data locations for the covidqu dataset
     dataset_path = os.path.join(data_path, "Lung Segmentation Data","Lung Segmentation Data"
     ,"Train","Normal")
-    paths_training = dict()
-    paths_training['dataset_path'] = dataset_path
-    paths_training['train']['path_images'] = os.path.join(dataset_path,'images')
-    paths_training['train']['path_labels'] = os.path.join(dataset_path,'lung masks')
-    return paths_training
+    path_images = os.path.join(dataset_path,'images')
+    path_masks = os.path.join(dataset_path,'lung masks')
+    return dataset_path, path_images, path_masks
 
 if __name__ == "__main__":
     main()

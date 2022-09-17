@@ -1,9 +1,9 @@
 import os
 import numpy as np
 import tensorflow as tf
-from shared_utils.prep_training_data import ImgLabelDataset
-from shared_utils.model_initializer import InitializeModel
-from shared_utils.web_utils import download_if_not_exist
+from prep_training_data import ImgLabelDataset
+from model_initializer import InitializeModel
+from web_utils import download_if_not_exist
 top_path = os.path.dirname(__file__)
 models_list = ['DenseNet121','efficientnetB0','efficientnet_v2B0','vgg16','inception','resnet50','resnet_v250',
 'resnet_rs101','inception_resnet','regnetX002','regnetY002','mobilenet','mobilenet_v2','mobilenet_v3Small',
@@ -16,12 +16,10 @@ download_if_not_exist(os.path.join(top_path,'data')
     ,dataset_name=dataset_name)
 
 def main(): 
-    dataset_path, path_images, path_labels = get_data_and_label_paths()
+    paths_training, paths_test = get_data_and_label_paths()
 
     """ Seeding """
-    np.random.seed(42)
-    tf.random.set_seed(42)
-    dataset = ImgLabelDataset(dataset_path,path_images=path_images,path_labels=path_labels)
+    dataset = ImgLabelDataset(paths_training)
 
     for model_name in models_list: 
         print('Training ' + model_name)
@@ -33,10 +31,16 @@ def main():
 
 def get_data_and_label_paths(): 
     # Set up paths to images and labels
-    dataset_path = data_path
-    path_images = os.path.join(data_path,'train')
-    path_labels = os.path.join(data_path,'train_labels.csv')
-    return dataset_path, path_images, path_labels
+    paths_training = dict()
+    paths_training['dataset_path'] = data_path
+    paths_training['train']['path_images'] = os.path.join(data_path,'train')
+    paths_training['train']['path_labels'] = os.path.join(data_path,'train_labels.csv')
+    
+    paths_test = dict()
+    paths_test['dataset_path'] = data_path
+    paths_test['test']['path_images'] = os.path.join(data_path,'test')
+    paths_test['test']['path_labels'] = ''
+    return paths_training, paths_test
 
 def initialize_train_model(model_name,dataset): 
     model_path = os.path.join(os.path.dirname(__file__),"trained_model")

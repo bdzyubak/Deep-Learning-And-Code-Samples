@@ -1,43 +1,82 @@
-""" setup.py
-This module sets up python dependencies for the MREPlus (Hepatogram Plus) project. This must be run on any new 
-system where the project workflows will be run. 
-Python (tested on 3.10) needs to be installed first, added to system path, and aliased to run as python, if it isn't by default. 
+"""setup.py
+This script sets up the hepplus python development environment for an operating system.
+It sets the system variable PYTHONPATH to include a list of desired FOLDERS, enabling clean imports across modules.
+It also installs all hepplus python dependencies via pip and requirements.txt.
+python >=3.9 needs to be installed first, added to system path, and aliased as python (e.g. alias python=python3.9).
+After running, close terminals and IDE to refresh system variables.
 Execution:
     python setup.py
 Inputs:
-    None.
-Outputs: 
-    Creates or appends to system variable PYTHONPATH. 
+    None
+Outputs:
+    Updates system variable PYTHONPATH
+    Installs or upgrades pip and hepplus python dependencies
 """
 
 import os
 import subprocess
 
-setup_path = os.path.dirname(__file__)
-system_var = 'PYTHONPATH'
+SET_FRESH_PYTHONPATH=True
+SETUP_PATH=os.path.dirname(__file__)
+FOLDERS=['shared_utils','common_models']
+SYSTEM_VAR='PYTHONPATH'
+if ' ' in SETUP_PATH:
+    IMPORTABLE_FOLDERS=['"'+os.path.join(SETUP_PATH,folder)+'"' for folder in FOLDERS]
+else:
+    IMPORTABLE_FOLDERS=[os.path.join(SETUP_PATH,folder) for folder in FOLDERS]
+if os.name=='nt': 
+    SEPARATOR=';'
+else: 
+    SEPARATOR=':'
 
-# NOTE: Should be OS agnostic, but not tested on Linux
-def wrap_set(setup_path): 
-    if not os.getenv("PYTHONPATH"): 
-        subprocess.call(['setx', system_var,setup_path], shell=True)
-    else: 
-        if setup_path not in os.getenv("PYTHONPATH"): # Do not duplicate
-            append_path = os.getenv("PYTHONPATH") + ';' + setup_path
-            subprocess.call(['setx', system_var,append_path], shell=True)
+def check_all_importables_in_path(current_path):
+    if current_path:
+        all_paths_present=all((folder in current_path) for folder in IMPORTABLE_FOLDERS)
+    else:
+        all_paths_present=False
+    return all_paths_present
 
-wrap_set(setup_path)
+def set_environ_windows(new_path):
+    subprocess.call(['setx',SYSTEM_VAR,new_path],shell=True)
+    return
 
-python_ver = '3.10'
-if os.name != 'nt': 
-    os.system('apt install python' + python_ver + '-distutils')
-    os.system('alias python=python3.10') 
+def set_environ_linux(new_path):
+    # with open(bashrc_path,'a+') as file:
+    #     lines = file.readlines()
+    #     lines = [line for line in lines if 'export PYTHONPATH' not in line]
+    #     shutil.move(bashrc_path,bashrc_path+'_bu')
+    #     lines.append(export_line)
+    #     file.writelines(lines)
+    user=str(subprocess.check_output('whoami',shell=True))[2:-3]
+    bashrc_path='/home/'+user+'/.bashrc'
+    export_line='export '+SYSTEM_VAR+'='+new_path
+    with open(bashrc_path, 'a') as file:
+        file.write(os.linesep)
+        file.write('# Add Python system variables for imports')
+        file.write(export_line+os.linesep)
+    return
 
-os.system('python -m pip install --upgrade pip')
+def set_path():
+    current_path=os.getenv('PYTHONPATH')
+    all_paths_present=check_all_importables_in_path(current_path)
+    if all_paths_present:
+        print('setup.py: all importable folders already present, not modifying PYTHONPATH')
+    else:
+        if SET_FRESH_PYTHONPATH:
+            current_path=''
+        new_path=current_path+(SEPARATOR.join(IMPORTABLE_FOLDERS))+SEPARATOR
+        if os.name=='nt':
+            set_environ_windows(new_path)
+        else:
+            set_environ_linux(new_path)
+    return
 
-dependencies = ['pydicom','pandas','tensorflow','tensorflow_datasets'
-            ,'scikit-image', 'opencv-python', 'matplotlib', 'IPython'
-            ,'seaborn', 'pydot', 'sklearn','opendatasets', 'pytest'
-            ,'psutil','git+https://github.com/tensorflow/examples.git']
- 
-for dep in dependencies: 
-    os.system('python -m pip install --upgrade ' + dep)
+def install_python_dependencies():
+    requirements_file=os.path.join(SETUP_PATH,'requirements.txt')
+    subprocess.check_output('python -m pip install --upgrade pip',shell=True)
+    subprocess.check_output('python -m pip install -r '+requirements_file,shell=True)
+    return
+
+if __name__ == '__main__':
+    set_path()
+    install_python_dependencies()

@@ -1,8 +1,8 @@
 import os
 import numpy as np
 import tensorflow as tf
-from shared_utils.prep_training_data import ImgLabelDataset
-from shared_utils.model_initializer import InitializeModel
+from prep_training_data import ImgLabelDataset
+from model_initializer import InitializeModel
 
 top_path = os.path.dirname(__file__)
 H = 256

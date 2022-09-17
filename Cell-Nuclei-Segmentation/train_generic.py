@@ -2,9 +2,9 @@ import os
 import numpy as np
 import tensorflow as tf
 import sys
-from shared_utils.prep_training_data import ImgMaskDataset
-from shared_utils.model_initializer import InitializeModel
-from shared_utils.web_utils import download_if_not_exist
+from prep_training_data import ImgMaskDataset
+from model_initializer import InitializeModel
+from web_utils import download_if_not_exist
 top_path = os.path.dirname(__file__)
 data_path = os.path.join(top_path,'data')
 url = ''
@@ -20,7 +20,8 @@ def main():
     np.random.seed(42)
     tf.random.set_seed(42)
 
-    dataset = ImgMaskDataset(os.path.join(top_path,'data'))
+    paths = get_data_and_label_paths()
+    dataset = ImgMaskDataset(paths)
     dataset.prep_data_img_labels()
     dataset.set_max_batch_size()
 
@@ -29,6 +30,14 @@ def main():
     model = InitializeModel(model_name,dataset,model_path)
     history = model.run_model()
     model.try_bypass_local_minimum(n_times=3)
+
+def get_data_and_label_paths(): 
+    # Set up paths to images and labels
+    paths = dict()
+    paths['dataset_path'] = data_path
+    paths['train']['path_images'] = os.path.join(data_path,'images')
+    paths['train']['path_labels'] = os.path.join(data_path,'masks')
+    return paths
 
 if __name__ == "__main__":
     main()

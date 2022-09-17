@@ -10,9 +10,6 @@ from tensorflow.keras.layers import TextVectorization
 # import tensorboard 
 
 # Import shared utilities part of this repository by adding the utilities path for the current python session
-package_location = os.path.dirname(os.path.dirname(__file__))
-utils_location = os.path.join(package_location,'shared_utils')
-sys.path.append(utils_location)
 from archive_utils import download_and_extract, make_download_paths_default
 from string_tools import custom_standardization
 from os_utils import make_new_dirs

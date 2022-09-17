@@ -4,7 +4,7 @@ import os
 import pathlib
 import time
 import datetime
-from shared_utils.os_utils import list_dir
+from os_utils import list_dir
 
 from matplotlib import pyplot as plt
 from IPython import display

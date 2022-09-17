@@ -30,3 +30,4 @@ Tutorials/data_word_embeddings
 *.tif
 /*/data
 /*/trained_model
+!requirements.txt

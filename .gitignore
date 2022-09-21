@@ -23,7 +23,6 @@ Tutorials/data_word_embeddings
 /Cell-Nuclei-Segmentation/img
 /Bogdans-Deep-Learning-Sandbox/KaggleHistopathologyDetection/data
 /Cell-Nuclei-Segmentation/UNET/results
-*.md
 *.jpg
 *.png
 *.csv

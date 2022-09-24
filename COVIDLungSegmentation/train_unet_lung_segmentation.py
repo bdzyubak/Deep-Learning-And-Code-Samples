@@ -12,13 +12,14 @@ H = 256
 W = 256
 
 def main(): 
+    tf.config.set_visible_devices([], 'GPU')
     download_if_not_exist(data_path,url="https://www.kaggle.com/datasets/anasmohammedtahir/covidqu") 
     training_data_paths = get_path_training_lung_segm_normal(data_path) # Do normal only for now; change variable name from global
     
     """ Seeding """
     np.random.seed(42)
     tf.random.set_seed(42)
-    dataset = ImgMaskDataset(training_data_paths['data_path_top'],training_data_paths['path_images'],training_data_paths['path_labels'])
+    dataset = ImgMaskDataset(training_data_paths)
     dataset.prep_data_img_labels()
 
     model_name = 'unet'

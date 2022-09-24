@@ -15,7 +15,8 @@ def main():
     # download_if_not_exist(data_path,
     #     url="https://www.kaggle.com/datasets/84613660e1f97d3b23a89deb1ae6199a0c795ec1f31e2934527a7f7aad7d8c37") 
     # Automated download does not work - download manually and place images in masks in ./data
-    
+    tf.config.set_visible_devices([], 'GPU')
+
     """ Seeding """
     np.random.seed(42)
     tf.random.set_seed(42)
@@ -34,9 +35,8 @@ def main():
 def get_data_and_label_paths(): 
     # Set up paths to images and labels
     paths = dict()
-    paths['dataset_path'] = data_path
-    paths['train']['path_images'] = os.path.join(data_path,'images')
-    paths['train']['path_labels'] = os.path.join(data_path,'masks')
+    paths['path_images'] = os.path.join(data_path,'images')
+    paths['path_masks'] = os.path.join(data_path,'masks')
     return paths
 
 if __name__ == "__main__":

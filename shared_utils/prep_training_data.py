@@ -185,7 +185,7 @@ class ImgMaskDataset(Dataset):
             if key not in paths_training: 
                 raise(OSError('Required key missing ' + key))
 
-        Dataset.__init__(self,paths_training['image_path'])
+        Dataset.__init__(self,paths_training['path_images'])
         # Initializes self.path_masks, self.masks 
         self.masks, self.path_masks = self.make_image_dirs(paths_training['path_masks'])
 

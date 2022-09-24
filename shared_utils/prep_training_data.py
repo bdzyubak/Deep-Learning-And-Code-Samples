@@ -10,12 +10,11 @@ import math
 import pandas as pd
 
 class Dataset: 
-    def __init__(self,data_path,path_images=''): 
+    def __init__(self,path_images=''): 
         # This class is used to initialize a dataset for image segmentation. 
         # It expects parallel image and mask folders to be located in a common data_path
         # There should be one mask for every image, with identical names 
         # Some preprocessing tools are also defined. 
-        self.data_path = data_path
         self.images, self.path_images = self.make_image_dirs(path_images)
         self.set_image_dims_original()
         self.image_dims_target = self.image_dims_original
@@ -23,8 +22,6 @@ class Dataset:
         self.set_seed(42) 
 
     def make_image_dirs(self,path_images): 
-        if not path_images: 
-            path_images = os.path.join(self.data_path,'images')
         images = self.get_image_list(path_images)
         num_examples = len(images)
         if hasattr(self, 'num_images'): 
@@ -183,16 +180,18 @@ class Dataset:
 
 
 class ImgMaskDataset(Dataset): 
-    def __init__(self,data_path,image_path='',mask_path=''): 
-        # Initializes self.image_paths, self.images
-        Dataset.__init__(self,data_path,image_path)
+    def __init__(self,paths_training): 
+        for key in ['path_images','path_masks']: 
+            if key not in paths_training: 
+                raise(OSError('Required key missing ' + key))
+
+        Dataset.__init__(self,paths_training['image_path'])
         # Initializes self.path_masks, self.masks 
-        self.masks, self.path_masks = self.make_image_dirs(mask_path)
+        self.masks, self.path_masks = self.make_image_dirs(paths_training['path_masks'])
 
         self.prep_data_img_labels()
 
     def prep_data_img_labels(self):
-        batch_size = self.batch_size
         """ Dataset """
         (train_x, train_y), (valid_x, valid_y), (test_x, test_y) = self.load_data(self.images,self.masks)
         train_x, train_y = shuffle(train_x, train_y)
@@ -220,18 +219,18 @@ class ImgMaskDataset(Dataset):
 
 
 class ImgLabelDataset(Dataset): 
-    def __init__(self,data_path,path_images='',path_labels=''): 
+    def __init__(self,paths_training): 
         # Initializes self.path_images, self.images. 
-        Dataset.__init__(self,data_path,path_images)
+        for key in ['path_images','path_labels']: 
+            if key not in paths_training: 
+                raise(OSError('Required key missing ' + key))
+        Dataset.__init__(self,paths_training['path_images'])
         # Initializes self.data_labels 
-        self.data_path = data_path
-        self.read_labels_from_excel(path_labels)
+        self.read_labels_from_excel(paths_training['path_labels'])
         self.train_val_split()
         self.calc_train_steps()
 
     def read_labels_from_excel(self,path_labels): 
-        if not path_labels: 
-            path_labels = os.path.join(self.data_path,'labels.csv')
         data_labels = pd.read_csv(path_labels, dtype=str)
         data_labels.id = data_labels.id + '.tif'
         self.data_labels = data_labels

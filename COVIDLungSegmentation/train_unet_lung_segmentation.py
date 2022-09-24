@@ -4,7 +4,7 @@ import tensorflow as tf
 from prep_training_data import ImgMaskDataset
 from model_initializer import InitializeModel
 from web_utils import download_if_not_exist 
-from import_lung_segmentation_data import get_path_training_lung_segm_normal
+from get_lung_segmentation_data import get_path_training_lung_segm_normal
 top_path = os.path.dirname(__file__)
 dataset_name = "covidqu"
 data_path = os.path.join(top_path,'data')

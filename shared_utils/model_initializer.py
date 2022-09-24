@@ -23,13 +23,17 @@ valid_models_custom = {'unet':'segm'}
 
 valid_model_names_all = deepcopy(valid_models_builtin)
 valid_model_names_all.update(valid_models_custom)
-valid_opt_params = ['learning_rate','num_epochs','batch_size']
+valid_opt_params = ['learning_rate','num_epochs']
+# valid_opt_params = ['learning_rate','num_epochs','batch_size']
 
 class InitializeModel(): 
     def __init__(self,model_name,dataset,model_path_top,base_trainable=True,train_fresh=False): 
         self.model_name = model_name.lower()
         self.model_path = os.path.join(model_path_top,model_name)
         self.train_fresh = train_fresh # Alternative is to train the model fresh, ignoring saved trained model and csv log
+        
+        # self.set_gpu_memory_limit()
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
         self.get_complexity_from_model_name()
         self.set_model_type()
         make_new_dirs(self.model_path,clean_subdirs=train_fresh)
@@ -51,6 +55,7 @@ class InitializeModel():
         self.set_loss_function()
         self.set_optimizer()
         self.set_metrics()
+        
 
     def set_model_type(self):
         if self.model_name_base not in valid_model_names_all: 
@@ -217,7 +222,7 @@ class InitializeModel():
         ])
 
     def set_default_optimization_params(self): 
-        self.batch_size = 32
+        # self.batch_size = 32
         self.learning_rate_base = 1e-3   # 0.0001
         self.num_epochs = 40 # Set to 1 to debug
 
@@ -262,6 +267,11 @@ class InitializeModel():
     def set_metrics(self): 
         # Dice is appropriate for segmentation tasks, accuracy can be used for classification tasks
         self.metrics =[dice_coef,'accuracy']
+
+    def set_gpu_memory_limit(self): 
+        gpus = tf.config.list_physical_devices('GPU')
+        if gpus: 
+            tf.config.experimental.set_memory_growth(gpus[0], True)
 
     def run_model(self): 
         # Use steps per epoch rather than batch size since random perumtations of the training data are used, rather than all training data

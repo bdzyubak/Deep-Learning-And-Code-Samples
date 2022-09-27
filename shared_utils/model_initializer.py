@@ -32,8 +32,6 @@ class InitializeModel():
         self.model_path = os.path.join(model_path_top,model_name)
         self.train_fresh = train_fresh # Alternative is to train the model fresh, ignoring saved trained model and csv log
         
-        # self.set_gpu_memory_limit()
-        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
         self.get_complexity_from_model_name()
         self.set_model_type()
         make_new_dirs(self.model_path,clean_subdirs=train_fresh)
@@ -268,11 +266,6 @@ class InitializeModel():
         # Dice is appropriate for segmentation tasks, accuracy can be used for classification tasks
         self.metrics =[dice_coef,'accuracy']
 
-    def set_gpu_memory_limit(self): 
-        gpus = tf.config.list_physical_devices('GPU')
-        if gpus: 
-            tf.config.experimental.set_memory_growth(gpus[0], True)
-
     def run_model(self): 
         # Use steps per epoch rather than batch size since random perumtations of the training data are used, rather than all training data
         self.model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
@@ -287,7 +280,7 @@ class InitializeModel():
             verbose = 1, 
             callbacks=self.callbacks
         )
-
+        # TODO: Append epoch time if already in the excel. 
         self.log_timings()
         return self.history
 

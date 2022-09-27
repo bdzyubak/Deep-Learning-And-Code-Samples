@@ -18,7 +18,7 @@ class Dataset:
         self.images, self.path_images = self.make_image_dirs(path_images)
         self.set_image_dims_original()
         self.image_dims_target = self.image_dims_original
-        self.batch_size = 32
+        self.set_batch_size(32)
         self.set_seed(42) 
 
     def make_image_dirs(self,path_images): 
@@ -65,11 +65,18 @@ class Dataset:
             self.image_dims_original= dims
     
     def get_batch_max_batch_size_for_system_memory(self,memory_factor=0.8): 
-        import psutil
-        available_memory = memory_factor * psutil.virtual_memory().available 
-        available_memory = max([available_memory,50000000000]) # Set to 50 GB max to be respectful to shared system
-        avg_file_size = self.get_mean_file_size()
-        max_batch_size =  available_memory / avg_file_size
+
+        gpus = tf.config.list_physical_devices('GPU') # NOTE: Only tested on 1 GPU
+        if gpus: 
+            # If a GPU is visible at this stage - it will be used by tensorflow 
+            memory_stats = tf.config.experimental.get_memory_info('GPU:0')
+            available = memory_stats
+        else: 
+            import psutil
+            available_memory = memory_factor * psutil.virtual_memory().available 
+            available_memory = max([available_memory,50000000000]) # Set to 50 GB max to be respectful to shared system
+            avg_file_size = self.get_mean_file_size()
+            max_batch_size =  available_memory / avg_file_size
         return max_batch_size
 
     def __set_batch_size(self,batch_size): 
@@ -165,7 +172,7 @@ class Dataset:
         dataset = tf.data.Dataset.from_tensor_slices((train_x, train_y))
         # Preprocess images and masks
         dataset = dataset.map(self.tf_parse)
-        dataset = dataset.batch(self.batch_size)
+        dataset = dataset.batch(32)
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
         return dataset
     

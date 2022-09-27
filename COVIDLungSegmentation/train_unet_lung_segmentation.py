@@ -12,7 +12,7 @@ H = 256
 W = 256
 
 def main(): 
-    tf.config.set_visible_devices([], 'GPU')
+    # tf.config.set_visible_devices([], 'GPU')
     download_if_not_exist(data_path,url="https://www.kaggle.com/datasets/anasmohammedtahir/covidqu") 
     training_data_paths = get_path_training_lung_segm_normal(data_path) # Do normal only for now; change variable name from global
     

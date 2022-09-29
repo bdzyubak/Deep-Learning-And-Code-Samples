@@ -17,8 +17,8 @@ download_if_not_exist(os.path.join(top_path,'data')
     ,dataset_name=dataset_name)
 
 # tf.config.set_visible_devices([], 'GPU')
+
 def main(): 
-    tf.config.set_visible_devices([], 'GPU')
     paths_training, paths_test = get_data_and_label_paths(data_path)
 
     """ Seeding """

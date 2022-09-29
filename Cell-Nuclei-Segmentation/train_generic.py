@@ -15,7 +15,7 @@ def main():
     # download_if_not_exist(data_path,
     #     url="https://www.kaggle.com/datasets/84613660e1f97d3b23a89deb1ae6199a0c795ec1f31e2934527a7f7aad7d8c37") 
     # Automated download does not work - download manually and place images in masks in ./data
-    tf.config.set_visible_devices([], 'GPU')
+    # tf.config.set_visible_devices([], 'GPU')
 
     """ Seeding """
     np.random.seed(42)

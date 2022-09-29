@@ -18,7 +18,7 @@ class Dataset:
         self.images, self.path_images = self.make_image_dirs(path_images)
         self.set_image_dims_original()
         self.image_dims_target = self.image_dims_original
-        self.set_batch_size(32)
+        self.batch_size = 16
         self.set_seed(42) 
 
     def make_image_dirs(self,path_images): 
@@ -172,7 +172,7 @@ class Dataset:
         dataset = tf.data.Dataset.from_tensor_slices((train_x, train_y))
         # Preprocess images and masks
         dataset = dataset.map(self.tf_parse)
-        dataset = dataset.batch(32)
+        dataset = dataset.batch(self.batch_size)
         dataset = dataset.prefetch(tf.data.AUTOTUNE)
         return dataset
     

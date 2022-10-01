@@ -27,17 +27,19 @@ valid_opt_params = ['learning_rate','num_epochs']
 # valid_opt_params = ['learning_rate','num_epochs','batch_size']
 
 class InitializeModel(): 
-    def __init__(self,model_name,dataset,model_path_top,base_trainable=True,train_fresh=False): 
+    def __init__(self,model_name,dataset,model_path_top,base_trainable=True,train_fresh=False,run_debug=False): 
         self.model_name = model_name.lower()
         self.model_path = os.path.join(model_path_top,model_name)
+        self.dataset = dataset
         self.train_fresh = train_fresh # Alternative is to train the model fresh, ignoring saved trained model and csv log
+        self.set_default_optimization_params()
+        
+        if run_debug: 
+            self.set_run_debug()
         
         self.get_complexity_from_model_name()
         self.set_model_type()
-        make_new_dirs(self.model_path,clean_subdirs=train_fresh)
-        self.dataset = dataset
-        
-        self.set_default_optimization_params() 
+        make_new_dirs(self.model_path,clean_subdirs=train_fresh) 
 
         # Model top layer will always be excluded at this time as the goal is transfer learning 
         base_model = self.make_model() 
@@ -53,7 +55,11 @@ class InitializeModel():
         self.set_loss_function()
         self.set_optimizer()
         self.set_metrics()
-        
+    
+    def set_run_debug(self): 
+        self.dataset.train_dataset = self.dataset.train_dataset.take(16)
+        self.dataset.valid_dataset = self.dataset.train_dataset.take(16)
+        self.num_epochs = 1
 
     def set_model_type(self):
         if self.model_name_base not in valid_model_names_all: 

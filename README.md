@@ -19,6 +19,8 @@ The purpose of this project is to explore neural networks including experimentin
 Install the following prerequisites:
 1) Python >= 3.9 
 2) If computation of GUI is desired, install CUDA, cuDNN, and Zlib per: 
+    https://docs.nvidia.com/cuda/cuda-installation-guide-microsoft-windows/index.html, 
+    https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html
 3) Run the setup.py code at the top of the project source tree (parallel to this README file). 
 
 ## Organization 
@@ -48,11 +50,12 @@ Install the following prerequisites:
   Windows, so Linux patches will probably be needed. 
 
 2) The project is aimed to work with both CPU only and GPU-capable setups. As long as CUDA and other 
-  dependencies are installed, running on a GPU should "just work."
+  dependencies are installed, running on a GPU should "just work." GPU memory allocation is satic. If you 
+  run into an out of memory issue, reduce batch size. 
 
 ## Bug reporting/feature requests
 
-Feel free to raise an issue or, indeed, contribute to solving one on: #######
+Feel free to raise an issue or, indeed, contribute to solving one on: https://github.com/bdzyubak/Deep-Learning-Sandbox/issues
 
 ## Testing Installation: 
 

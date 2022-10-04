@@ -1,3 +1,4 @@
+from numpy import NaN
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow import keras
@@ -11,7 +12,7 @@ import matplotlib.pyplot as plt
 from timeit import default_timer as timer
 import pandas as pd
 
-from shared_utils.os_utils import make_new_dirs
+from shared_utils.os_utils import delete, make_new_dirs, delete
 from shared_utils.string_utils import get_trailing_digits
 from shared_utils.metrics import dice_coef
 
@@ -233,29 +234,31 @@ class InitializeModel():
     def make_callbacks(self):
         trained_model_file = os.path.join(self.model_path,"trained_model_" + self.model_name + ".h5")
         csv_path = os.path.join(self.model_path,"training_history_"+self.model_name+".csv") 
-        if (os.path.exists(trained_model_file) and os.path.exists(csv_path)) and not self.train_fresh: 
-            continue_training = not self.train_fresh
-            self.model.load_weights(trained_model_file)
+        if not self.train_fresh: 
+            if not os.path.exists(trained_model_file): 
+                print('Could not find model file: ' + trained_model_file + '. Starting training fresh.')
+                self.train_fresh = True
+            if not os.path.exists(csv_path): 
+                print('Could not find history file: ' + csv_path + '. Starting training fresh.') 
+                self.train_fresh = True
+        
+        if self.train_fresh: 
+            delete(trained_model_file)
+            delete(csv_path)
         else: 
-            continue_training = False # Leave the self.continue_training alone for potential exentions to running as a service
-            print('Starting training fresh. No model or history in: ' + trained_model_file)
+            self.model.load_weights(trained_model_file)
 
-        self.timing_callback = TimingCallback()
+        self.history_file = csv_path
+        self.timing_callback = TimingCallback(self.history_file)
         self.callbacks = [
             ModelCheckpoint(trained_model_file, verbose=1, save_best_only=True),
             ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=2, min_lr=1e-7, verbose=1),
-            CSVLogger(csv_path,append=continue_training),
-            EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True),
-            self.timing_callback
+            self.timing_callback, 
+            CSVLogger(csv_path,append=True),
+            EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
         ]
 
         self.trained_model_file = trained_model_file
-        self.history_file = csv_path
-    
-    def log_timings(self): 
-        df = pd.read_csv(self.history_file)
-        df['epoch_time'] = self.timing_callback.logs
-        df.to_csv(self.history_file)
 
     def set_loss_function(self,loss='binary_crossentropy'): 
         # For now, use binary cross entropy appropriate for mutually exclusive classes
@@ -275,7 +278,7 @@ class InitializeModel():
     def run_model(self): 
         # Use steps per epoch rather than batch size since random perumtations of the training data are used, rather than all training data
         self.model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
-        self.timing_callback.clear_logs()
+        # self.timing_callback.clear_logs()
 
         self.history = self.model.fit(
             x = self.dataset.train_dataset, 
@@ -286,8 +289,8 @@ class InitializeModel():
             verbose = 1, 
             callbacks=self.callbacks
         )
-        # TODO: Append epoch time if already in the excel. 
-        self.log_timings()
+        
+        # self.timing_callback.write_to_csv(self.history_file)
         return self.history
 
     def try_bypass_local_minimum(self,n_times=1): 
@@ -295,8 +298,6 @@ class InitializeModel():
         # Large batches are faster to train but their optimization is smoother and more prone to getting stuck. 
         # Using large batches and a reasonably high initial starting learning rate, the model should hit a decent accuracy. 
         # This function can than be used to look for an even better minimum. 
-        # TODO: Consider reducing batch size as well. Initial training can be done with batches as large as memory will allow
-        # but local minima avoidence is better with mini-batches e.g. 32 or 64 examples
         backup_models = dict() # Model name: csv file
         backup_models['jump_iter0'] = [self.trained_model_file,self.history_file,self.get_final_epoch_coeff('dice_coef')]
         
@@ -361,11 +362,13 @@ class InitializeModel():
         plt.show()
 
 class TimingCallback(keras.callbacks.Callback):
-    def __init__(self, logs={}):
-        self.logs=[]
+    def __init__(self, history_file, logs={}):
+        # self.logs=[]
+        self.column_name = 'epoch_time'
+        self.history_file = history_file
+
     def on_epoch_begin(self, epoch, logs={}):
         self.starttime = timer()
     def on_epoch_end(self, epoch, logs={}):
-        self.logs.append(timer()-self.starttime)
-    def clear_logs(self): 
-        self.logs=[]
+        self.epoch_time = round(timer()-self.starttime)
+        logs['epoch_time'] = self.epoch_time

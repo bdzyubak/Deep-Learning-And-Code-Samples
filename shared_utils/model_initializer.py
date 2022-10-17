@@ -1,3 +1,18 @@
+""" Universal model initializer for loading any supported model in one line. Defines a lot of defaults which can be changed to customize or test impact of hyperparameters. 
+
+    Use: 
+        Import InitializeModel and initialize its instance. Customize desired parameters, and call run_model()
+    Inputs:
+        model_name (str): The name of the model to import. See valid_model_names_all variable for list of supported models
+
+        dataset (class object): A class object made by prep_data.py which contains tensorflow train and validation datasets and training parameters. 
+
+        model_path_top (str): Folder path where the trained model and training history will be saved. 
+
+    Outputs: 
+        InitializeModel (class object): An object containing hyperparameter settings, configuration flags, and training/logging functions. 
+"""
+
 from numpy import NaN
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
@@ -48,8 +63,7 @@ class InitializeModel():
         # The target is mostly medical applications, so by default, enable training of all layers 
         # i.e. trained ImageNet weights are only used as starting guesses
         base_model.trainable = base_trainable 
-        # TODO: Split off segmentation context. In this case, final layer needs to have the same H and W
-        # as the pre-trained one, but should have a flexible number of output channels. 
+        # TODO: Split off segmentation context. In this case, final layer needs to have the same H and W as the pre-trained one, but should have a flexible number of output channels. 
         self.add_final_layers(base_model)
         
         self.make_callbacks()
@@ -58,11 +72,14 @@ class InitializeModel():
         self.set_metrics()
     
     def set_run_debug(self): 
+        """ Activate debug mode which runs only one epoch on only one batch"""
         self.dataset.train_dataset = self.dataset.train_dataset.take(16)
         self.dataset.valid_dataset = self.dataset.train_dataset.take(16)
         self.num_epochs = 1
 
     def set_model_type(self):
+        """Set model to classification or segmentation. 
+        Currently used only to replace final layer for transfer learning."""
         if self.model_name_base not in valid_model_names_all: 
             raise(ValueError('Unsupported model: ' + self.model_name_base))
         if valid_model_names_all[self.model_name_base] == 'class': 
@@ -91,6 +108,7 @@ class InitializeModel():
         return valid_model_names_all
 
     def make_model(self): 
+        """Import the desired model from built-ins and supported custom models."""
         import_statement, method_name = self.make_import_statement()
         # Import is being bound to returned variable name. 
         model_args = {'input_shape':self.dataset.image_dims_original}
@@ -110,6 +128,7 @@ class InitializeModel():
         return base_model
 
     def make_import_statement(self): 
+        """Make the import statement to load built in models with importlib e.g. import tesnroflow.keras.applications.ResNet200"""
         model_name = self.model_name
         import_statement = ''
         method_name = ''
@@ -125,7 +144,7 @@ class InitializeModel():
         return import_statement, method_name
 
     def make_import_statement_builtin(self):
-        # Default name/method name
+        """Make statement for builtin modles"""
         import_statement = 'tensorflow.keras.applications.' + self.model_name_base
         
         # Modify default for some models
@@ -186,11 +205,13 @@ class InitializeModel():
             raise(ValueError('Must specify complexity: ' + method_name + ' followed by a valid architecture size.'))
 
     def make_path_to_custom_models(self): 
+        """Make import statement for custom models. Currently, only unet is tested."""
         package_top = os.path.dirname(os.path.dirname(__file__))
         model_module_path = os.path.join(package_top,'common_models',self.model_name,self.model_name+'_model.py')
         return model_module_path
 
     def get_complexity_from_model_name(self): 
+        """Customize import statement to the proper model name based on concise complexity spec."""
         model_name_base = [name for name in valid_model_names_all if self.model_name.startswith(name)]
         if not model_name_base: 
             raise(ValueError('Requested base model not supported: ' + self.model_name))
@@ -215,7 +236,8 @@ class InitializeModel():
         self.model = base_model
     
     def add_final_layers_class(self,base_model): 
-            self.model = Sequential([
+        """Use for transfer learning - add final layer instead of the one pre-trained to identify puppies and kittens."""
+        self.model = Sequential([
             base_model,
             Flatten(),
             Dense(64, activation='relu'),
@@ -232,6 +254,7 @@ class InitializeModel():
         self.num_epochs = 40 # Set to 1 to debug
 
     def make_callbacks(self):
+        """ Setup callbacks to do model checkpoint saving, learning rate reduction, early stopping and (custom) logging of epoch training time. """
         trained_model_file = os.path.join(self.model_path,"trained_model_" + self.model_name + ".h5")
         csv_path = os.path.join(self.model_path,"training_history_"+self.model_name+".csv") 
         if not self.train_fresh: 
@@ -272,11 +295,11 @@ class InitializeModel():
         self.optimizer = tf.keras.optimizers.Adam(learning_rate)
 
     def set_metrics(self): 
-        # Dice is appropriate for segmentation tasks, accuracy can be used for classification tasks
+        """ Log both dice (appropriate for segmentation tasks) and accuracy (for classification task). Only read the relevant one at comparison stage. """
         self.metrics =[dice_coef,'accuracy']
 
     def run_model(self): 
-        # Use steps per epoch rather than batch size since random perumtations of the training data are used, rather than all training data
+        """ Run the model. Use steps per epoch rather than batch size since random perumtations of the training data are used, rather than all training data"""
         self.model.compile(loss=self.loss, optimizer=self.optimizer, metrics=self.metrics)
         # self.timing_callback.clear_logs()
 
@@ -294,10 +317,7 @@ class InitializeModel():
         return self.history
 
     def try_bypass_local_minimum(self,n_times=1): 
-        # This method is a way to bypass local minima without using stochastic small-batch training. 
-        # Large batches are faster to train but their optimization is smoother and more prone to getting stuck. 
-        # Using large batches and a reasonably high initial starting learning rate, the model should hit a decent accuracy. 
-        # This function can than be used to look for an even better minimum. 
+        """ Bypass local minima by increasing the learning rate back to original. Use this once stopping condition is reached in attempt to get better results. Also useful to unstick model which gets caught in early minima e.g. 10% accuracy that can happen with complex enough models that don't have pre-trained weights. """
         backup_models = dict() # Model name: csv file
         backup_models['jump_iter0'] = [self.trained_model_file,self.history_file,self.get_final_epoch_coeff('dice_coef')]
         
@@ -312,6 +332,7 @@ class InitializeModel():
         self.pick_best_model(backup_models)
         
     def make_backup_file(self, filename, i):
+        """ Back up model for choosing the best one after multiple runs. Used for bypassing local minima. """
         extension = '.'+filename.split('.')[-1]
         backup_file_name = filename.split(extension)[-2] + '_backup'+str(i) + extension
         shutil.copy(filename,backup_file_name)
@@ -322,8 +343,8 @@ class InitializeModel():
         return last_iter_coeff
 
     def pick_best_model(self,backup_models): 
-        # The default is to compare a value like dice or accuracy where higher is better
-        # If optimal metric is low (e.g. comparing loss) - define a flip scenario in get_final_epoch_coeff and use that as input
+        """ Use to select the best model. The default is to compare a metric like dice or accuracy where higher is better. When comparing loss (low is good), flip in get_final_epoch_coeff (e.g. 1-, 1/) and provide as input. 
+        """
         best_acc = 0
         best_model = ''
         for model in backup_models: 
@@ -341,6 +362,7 @@ class InitializeModel():
             print('Original model was the best.')
 
     def vis_training(self, start=1):
+        """ Plot training parameters for comparison. """
         history = self.history
         epoch_range = range(start, len(history['loss'])+1)
         s = slice(start-1, None)
@@ -362,6 +384,7 @@ class InitializeModel():
         plt.show()
 
 class TimingCallback(keras.callbacks.Callback):
+    """ Custom callback to record training time for each epoch. Use an instance of this before the CSV logger callback to save to excel. The epoch training time would typically be summed across all epochs (before loss plateau) to when comparing models. """
     def __init__(self, history_file, logs={}):
         # self.logs=[]
         self.column_name = 'epoch_time'

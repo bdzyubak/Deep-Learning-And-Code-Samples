@@ -1,3 +1,18 @@
+"""
+data_initializer.py
+
+This module prepares images for training of neural networks. Currently supported types include: 
+ a) A directory of images + a directory of masks with the same file names. 
+ b) A directory of images + an excel of files names and labels. 
+
+The module splits the data into training and test sets (with matched distributions of label 
+categories in the labels case), and does preprocessing. The default behavior allows for a one-line 
+import, but detailed custom configuration can also be done. 
+
+Execution:
+    Import the ImageMasksDataset or ImageLabelDataset providing image and data paths to them. 
+"""
+
 from cmath import inf
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
@@ -11,10 +26,17 @@ import pandas as pd
 
 class Dataset: 
     def __init__(self,path_images=''): 
-        # This class is used to initialize a dataset for image segmentation. 
-        # It expects parallel image and mask folders to be located in a common data_path
-        # There should be one mask for every image, with identical names 
-        # Some preprocessing tools are also defined. 
+        """
+        This class is used to initialize the training data, define pre-processing and set behavior (batch size, train/val split, prefetching). Do not import directly - call its child classes to fully define an object useful for a specific training task.  
+
+        Inputs:
+            data_path (str): Top path expected to contain an \images sub directory. 
+
+            path_images (str, optional): Direct path to training images. 
+
+        Outputs: 
+            A partially-defined class object which contains paths to images and training parameters. 
+        """
         self.images, self.path_images = self.make_image_dirs(path_images)
         self.set_image_dims_original()
         self.image_dims_target = self.image_dims_original
@@ -22,6 +44,18 @@ class Dataset:
         self.set_seed(42) 
 
     def make_image_dirs(self,path_images): 
+        """
+        Function for getting paths to images used for training. 
+
+        Inputs:
+            self.data_path (str): Path to directory containing images as a subdirectory. Will be used to define a default path to images if path_images is not provided. 
+            
+            path_images (str, optional): Direct path to subdirectory containing images. 
+
+        Outputs: 
+            images (list): List of full paths to images to be used for training. 
+            path_images (str): Path to the directory containing the images. 
+        """
         images = self.get_image_list(path_images)
         num_examples = len(images)
         if hasattr(self, 'num_images'): 
@@ -31,19 +65,24 @@ class Dataset:
         return images, path_images
 
     def get_mean_file_size(self): 
+        """ Function for getting mean file size of the input image. 
+        """
         file_paths = []
         for path in self.images: 
             file_paths.append(os.path.getsize(path))
         return sum(file_paths)/len(file_paths)
     
     def get_image_list(self,path:str): 
-        # Reset locations of images and masks folders if named in a non-standard way
+        """ Function to obtain paths to training images, and check that they were found. 
+        """
         images = list_dir(path,target_type='files')
         if not images: 
             raise(FileNotFoundError('Cannot find image files in: ' + images))
         return images
         
     def set_image_target_dims(self,dims:tuple): 
+        """ Function to set desired dimensions that training images (and masks) will be rescaled to. 
+        """
         if len(dims) != 3: 
             raise(ValueError('Specify image dimensions as a tuple of (Height,Width,Channels).'))
 
@@ -53,6 +92,9 @@ class Dataset:
         self.image_dims_target = dims
     
     def set_image_dims_original(self): 
+        """
+        Read a sample image and use its dimensions to set dimensions for the dataset. All images are assumed to be of the same size. 
+        """
         image_path = self.images[0]
         image = cv2.imread(image_path, cv2.IMREAD_COLOR)
         dims = image.shape
@@ -65,7 +107,10 @@ class Dataset:
             self.image_dims_original= dims
     
     def get_batch_max_batch_size_for_system_memory(self,memory_factor=0.8): 
-
+        """ Function for setting the batch size to maximum allowed by system RAM. 
+        NOTE: This is the method that should yield fastest training but may be prone to local minima. The alternative is small-batch or minibatch stochastic optimization (e.g. 32)
+        TODO: Make separate function for use with GPU, which is currently overflowing. 
+        """
         gpus = tf.config.list_physical_devices('GPU') # NOTE: Only tested on 1 GPU
         if gpus: 
             # If a GPU is visible at this stage - it will be used by tensorflow 
@@ -80,6 +125,9 @@ class Dataset:
         return max_batch_size
 
     def __set_batch_size(self,batch_size): 
+        """
+        Set batch size to the nearest higher power of 2 of the specified number, unless overridden. This is more computationally efficient than using arbitrary sizes. 
+        """
         fraction_of_dataset = round(self.num_examples / 10)
         if batch_size > fraction_of_dataset: 
             print('Batch size of ' + str(batch_size) + ' exceeds 10 percent of the dataset. \
@@ -100,16 +148,14 @@ class Dataset:
         self.set_batch_size(self.num_examples)
     
     def calc_train_steps(self): 
-        """ Calculate the number of training steps based on dataset siez
-            TODO: Remvoe argument for valid dataset/output of valid train steps once train/valid 
-            split is fully handled by tensorflow at train time. 
+        """ Calculate the number of training steps based on batch and dataset size
 
-        Args:
+        Inputs: 
             self.train_dataset (tf.dataset): The training data in tf.dataset form
             self.valid_dataset (tf.dataset): The validation data in tf.dataset form
             self.batch_size (int): The size of batches to use in training
 
-        Returns:
+        Outputs:
             self.train_steps (int): The number of training steps to run
             self.valid_steps (int): The number of validation steps to run
         """
@@ -127,8 +173,8 @@ class Dataset:
             self.valid_steps += 1 
 
     def calc_nearest_power_of_two(self,batch_size,limit=inf): 
-        # Round value  (e.g. batch size=60) to nearest higher power of two (64).
-        # If exceeds specified limit, use nearest lower power of two (32). 
+        """ Round the batch_size down to nearest higher power of two for computational efficiency e.g. 60->64. Optionally, set limit. If exceeded, will use nearest lower power of 2. 
+        """
         power_of_two = 2**math.ceil(math.log2(batch_size))
         if power_of_two > limit: 
             power_of_two = 2**math.floor(math.log2(batch_size))
@@ -140,6 +186,10 @@ class Dataset:
         x, y = shuffle(x, y, random_state=42)
 
     def read_image(self,path,image_type='image'):
+        """
+        Read one image, resize to target dims, and normalize by 255. Designed for color images with 3x 0-255 channels. 
+        TODO: Extend to grayscle and validate. 
+        """
         if not isinstance(path,str): 
             path = path.decode()
         if image_type == 'image': 
@@ -169,6 +219,8 @@ class Dataset:
         return x, y
 
     def tf_dataset(self, train_x, train_y):
+        """ Create a fetcher for the training data with defined batch size. Use prefetching for computational efficiency. 
+        """
         dataset = tf.data.Dataset.from_tensor_slices((train_x, train_y))
         # Preprocess images and masks
         dataset = dataset.map(self.tf_parse)
@@ -177,6 +229,8 @@ class Dataset:
         return dataset
     
     def set_seed(self,seed): 
+        """ Set a seed for the train/val random split to make validation results reproducible. 
+        """
         self.seed = seed
         np.random.seed(seed)
         tf.random.set_seed(seed)
@@ -187,7 +241,22 @@ class Dataset:
 
 
 class ImgMaskDataset(Dataset): 
+    """
+    Makes an object containing paths to paired masks/images together with pre-processing, and fetching functions that will be used to make batches at train time. 
+    TODO: Make data loading a function reference, like it is for ImgLabelDataset to minimize memory consumption. 
+    """
     def __init__(self,paths_training): 
+        """
+        Inputs:
+            data_path (str): Top path expected to contain an \images sub directory. 
+
+            image_path (str, optional): Direct path to training images. 
+
+            mask_path (str, optional): Direct path to training masks. 
+
+        Outputs: 
+            A class object used by the model_initializer.py for training. 
+        """
         for key in ['path_images','path_masks']: 
             if key not in paths_training: 
                 raise(OSError('Required key missing ' + key))
@@ -199,7 +268,14 @@ class ImgMaskDataset(Dataset):
         self.prep_data_img_labels()
 
     def prep_data_img_labels(self):
-        """ Dataset """
+        """ Function to prepare the training dataset. 
+        Inputs: 
+            self.images (list): Full paths to images. 
+
+            self.masks (list): Full paths to masks. 
+        Outputs: 
+            self.train_dataset (tf.dataset): A dataset with paired images and labels. 
+        """
         (train_x, train_y), (valid_x, valid_y), (test_x, test_y) = self.load_data(self.images,self.masks)
         train_x, train_y = shuffle(train_x, train_y)
 
@@ -212,6 +288,8 @@ class ImgMaskDataset(Dataset):
         self.calc_train_steps()
     
     def load_data(self, images, masks, split=0.2):
+        """ Function to load the data and split into train and val sets. 
+        """
         size = int(len(images) * split)
 
         # Split data into train and val sets
@@ -226,8 +304,22 @@ class ImgMaskDataset(Dataset):
 
 
 class ImgLabelDataset(Dataset): 
+    """
+    Makes an object containing paths to images, and an excel with labels and corresponding image names together with pre-processing, and fetching functions that will be used to make batches at train time. 
+    """
+
     def __init__(self,paths_training): 
-        # Initializes self.path_images, self.images. 
+        """
+        Inputs:
+            data_path (str): Top path expected to contain an \images sub directory. 
+
+            image_path (str, optional): Direct path to training images. 
+
+            path_labels (str, optional): Direct path to excel file with labels/corresponding image names.
+
+        Outputs: 
+            A class object used by the model_initializer.py for training. 
+        """
         for key in ['path_images','path_labels']: 
             if key not in paths_training: 
                 raise(OSError('Required key missing ' + key))
@@ -238,6 +330,16 @@ class ImgLabelDataset(Dataset):
         self.calc_train_steps()
 
     def read_labels_from_excel(self,path_labels): 
+        """ Reads labels from csv file
+
+        Inputs:
+            self.data_path (str): Top path expected to contain a labels.csv file.  
+
+            path_labels (str, optional): Direct path to excel file with labels/corresponding image names.
+
+        Outputs: 
+            self.data_labels (pandas dataframe): Data labels and their ID's which are used to match to input images. 
+        """
         data_labels = pd.read_csv(path_labels, dtype=str)
         data_labels.id = data_labels.id + '.tif'
         self.data_labels = data_labels
@@ -245,6 +347,16 @@ class ImgLabelDataset(Dataset):
             raise(OSError('Number of images and labels mismatched. Curate datapoints.'))
         
     def train_val_split(self): 
+        """ Split the training data into train and val sets, keeping the ratio of classes the same as in the population. 
+
+        Inputs:
+            self.data_labels (pandas dataframe): Data labels and their ID's which are used to match to input images.             
+
+        Outputs: 
+            self.train_dataset (pandas dataframe): Training labels and their filenames. 
+
+            self.valid_dataset (pandas dataframe): Validation labels and their filenames. 
+        """
         from sklearn.model_selection import train_test_split
         train_df, valid_df = train_test_split(self.data_labels, test_size=0.2, random_state=self.seed, stratify=self.data_labels.label) 
 
@@ -252,6 +364,17 @@ class ImgLabelDataset(Dataset):
         self.valid_dataset, VA_STEPS = self.make_random_data_generator(valid_df)
 
     def make_random_data_generator(self,df):
+        """ Make a loader which yields random permutations of images and corresponding labels.
+
+        Inputs:
+            self.path_images (str): Path to image files. 
+            
+            df (pandas dataframe): Labels and filenames of associated images. 
+
+        Outputs: 
+            loader (function reference): A data loader function for fetching images at runtime. 
+
+        """
         from tensorflow.keras.preprocessing.image import ImageDataGenerator
         datagen = ImageDataGenerator(rescale=1/255)
         # Make a training data loader which yields random perumtations of training data with a given batch size

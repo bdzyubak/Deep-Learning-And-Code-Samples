@@ -6,7 +6,7 @@ Email: illan7@gmail.com
 
 Date: 09/20/2022
 
-Repository: [Deep Learning Sandbox](https://github.com/bdzyubak/Deep-Learning-Sandbox)
+Repository: [tensorflow-sandbox](https://github.com/bdzyubak/tensorflow-sandbox)
 
 ## Purpose:
 
@@ -14,6 +14,10 @@ The purpose of this project is to explore neural networks including experimentin
  architectures, and testing the importance of hyperparameters. To that end, I am building an easy to use 
  interface which allows training to be set up with default parameters in a few lines, or configured to 
  compare a dozen permutations of GANs with different generators/discriminators, for example. 
+
+Please also see the more recent repo for PyTorch exploration: [torch-control](https://github.com/bdzyubak/torch-control)
+
+![img.png](img.png)
 
 ## Installation
 Install the following prerequisites:

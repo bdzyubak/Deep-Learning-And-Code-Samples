@@ -17,7 +17,7 @@ The purpose of this project is to explore neural networks including experimentin
 
 Please also see the more recent repo for PyTorch exploration: [torch-control](https://github.com/bdzyubak/torch-control)
 
-![img.png](img.png)
+![plot](https://user-images.githubusercontent.com/37943739/174877654-38e800d4-9bd4-46ec-8170-2d108f9844aa.JPG) 
 
 ## Installation
 Install the following prerequisites:
